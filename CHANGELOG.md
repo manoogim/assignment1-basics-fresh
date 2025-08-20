@@ -1,6 +1,8 @@
 # Changelog
 
 All changes we make to the assignment code or PDF will be documented in this file.
+## [fork]
+- no changes
 
 ## [1.0.5] 2025-04-15
 - code: Add submission script, fix typos
