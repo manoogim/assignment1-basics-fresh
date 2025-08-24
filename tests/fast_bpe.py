@@ -73,10 +73,6 @@ def pppf(pairs: set[BytesPair], positions_map: PairPositionsMap):
         print(ppp(bp, positions_map))
     pass
 
-def list_byte_pairs (word_bytes, start_loc):
-    result = [(ii, BytesPair(word_bytes[ii], word_bytes[ii+1])) for ii in range(start_loc, len(word_bytes) - 1)]
-    return result
-
 def init_frequencies(distinct_words: Counter[tuple[bytes]], positions: dict[tuple[bytes], set[int]]):
     """
     inputs:
@@ -84,36 +80,35 @@ def init_frequencies(distinct_words: Counter[tuple[bytes]], positions: dict[tupl
         positions is a dict which shows in which corpus positions those words appear
 
     outputs:
-        dict which shows how many times each distinct byte_pair appears in the corpus
         dict which shows set if word idx in corpus where each byte pair appears
-        note: count of the positions in second dict should equal the frequency in first dict
+        note: count of the positions in second dict should equal the actual frequency
 
     """
-    pair_freq_dict: Counter[BytesPair] = Counter()
     pair_positions_dict: PairPositionsMap = defaultdict(list)
     for dw in distinct_words:
         word_len = len(dw)
         for ii in range(word_len - 1):
             bp = BytesPair(dw[ii], dw[ii+1])
-            cnt = distinct_words[dw]
-            pair_freq_dict[bp] += cnt
             word_positions = positions[dw]
             pair_positions_dict[bp].extend(word_positions)
 
-    return pair_freq_dict, pair_positions_dict
+    return pair_positions_dict
 
-    
-def init_heap_queue(freq_heap: list[HeapEntry], pair_positions: PairPositionsMap) :
-    # build max-heap using negative frequency
-    
+def build_heap_item( p:BytesPair, positions: list[int]) -> HeapEntry:   
+    # for tie-breaking: pick lexicographically larger
+    rank = ReverseBytes(p)
+    f = len(positions)
+    tup = HeapEntry (-f, rank, p) 
+    return tup
+
+def init_heap_queue( pair_positions: PairPositionsMap) :
+    freq_heap = []
+    # build max-heap using negative frequency    
     for p, pair_locations in pair_positions.items():
-        # for tie-breaking: pick lexicographically larger
-        rank = ReverseBytes(p)
-        f = len(pair_locations)
-        tup = HeapEntry (-f, rank, p)
+        tup = build_heap_item(p, pair_locations)
         freq_heap.append(tup)
-    
     heapq.heapify(freq_heap)
+    return freq_heap
 
 
 def pop_best_pair(myheap, pair_positions_map: PairPositionsMap):
@@ -128,42 +123,43 @@ def create_new_word(old_word: BpeWord, top_pair: BytesPair, new_token: bytes ):
     old_bytes = old_word.value
     new_bytes = []
     ii = 0
-    locations = []
+    affected_boundaries = []
     while ii < len(old_bytes):
         if ii + 1 < len(old_bytes) and old_bytes[ii] == top_pair.a and old_bytes[ii + 1] == top_pair.b:
             new_bytes.append(new_token)
-            locations.append(ii)
+            affected_boundaries.append(ii)
             ii += 2
         else:
             new_bytes.append(old_bytes[ii])
             ii += 1
         pass
-    result = word_from_bytes(old_word.idx, new_bytes)
-    return result, locations
+    result_word = word_from_bytes(old_word.idx, new_bytes)
 
-def collect_affected_pairs(word: BpeWord, same_words, affected_boundaries, receiver: List[tuple[int,BytesPair]]):
-    start_loc = max(0, affected_boundaries[0] - 1) # TODO - consider upper boundary also
-    pairs_tuples = list_byte_pairs(word.value, start_loc)
-    for _, pt in pairs_tuples:
-        tup = (word.idx, pt)
+    if len(affected_boundaries) > 0:
+        first_affected = affected_boundaries[0]
+        start_loc = max(0, first_affected - 1)
+
+        nn = len(affected_boundaries)
+        last_affected = affected_boundaries[nn-1] + 2
+        end_loc = max(start_loc, last_affected )
+        affected_range = [start_loc, end_loc]
+    else:
+        affected_range = []
+        nn = 0
+
+    return result_word, affected_range, nn
+
+def collect_affected_pairs(word: BpeWord, same_words, num_adj, affected_range, receiver: List[tuple[int,BytesPair]]):
+    start_loc = affected_range[0]
+    end_loc = min(affected_range[1] - num_adj, len(word.value) -1) # TODO why is this not working for added pairs?
+    affected_pairs = [BytesPair(word.value[ii], word.value[ii+1]) for ii in range(start_loc, end_loc)]
+    for pt in affected_pairs:
+        tup = (word.idx, pt)    
         for idx in same_words:
             tup = (idx, pt)
             receiver.append(tup)
 
-def frequency_aware_removal(old_positions: list[int], top_pair_counter: Counter[int]):
-    """
-    Frequency aware removal of positions need to support words with repeating pairs, ex: 'in' in 'training'
-    """
-    keep_positions = []
-    for x in old_positions:
-        if top_pair_counter[x] > 0:
-            top_pair_counter[x] -= 1
-        else:
-            keep_positions.append(x)
-    return keep_positions
-
-def adjust_positions(removed_pairs:list[tuple[int,BytesPair]], added_pairs: list[tuple[int,BytesPair]], top_pair_positions, 
-                     positions_map: PairPositionsMap):
+def adjust_positions(removed_pairs:list[tuple[int,BytesPair]], added_pairs: list[tuple[int,BytesPair]], positions_map: PairPositionsMap):
     # top_pair_counter: Counter = Counter(top_pair_positions)
     delta_positions = PairPositionsMap()
 
@@ -203,26 +199,25 @@ def merge(corpus: Corpus, top_pair: BytesPair, new_token, pair_positions_map: Pa
 
         new_word = corpus[word_idx]
 
-        new_word, locs = create_new_word(new_word, top_pair, new_token)
-        if len(locs) > 0:
-            collect_affected_pairs(corpus[word_idx], same_words, locs, pairs_removed)
-            collect_affected_pairs(new_word, same_words, locs, pairs_added)
+        new_word, affected_range, num_removed = create_new_word(new_word, top_pair, new_token)
+        if len(affected_range) > 0:
+            collect_affected_pairs(corpus[word_idx], same_words, 0, affected_range, pairs_removed)
+            collect_affected_pairs(new_word, same_words, num_removed, affected_range, pairs_added)
 
-        corpus[word_idx] = new_word
+            corpus[word_idx] = new_word
     
-    delta_positions = adjust_positions(pairs_removed, pairs_added, top_pair_positions, pair_positions_map)
+    delta_positions = adjust_positions(pairs_removed, pairs_added, pair_positions_map)
     return delta_positions
 
-def train_fast_bpe (corpus_raw: list[tuple[bytes]],  distinct_words: Counter, word_positions: dict[tuple,set[int]], vocab, num_merges):
+def train_fast_bpe (corpus_raw: list[tuple[bytes]],  distinct_words: Counter[tuple[bytes]], word_positions: dict[tuple,set[int]], vocab, num_merges):
 
     merges = []
     corpus: Corpus = [word_from_bytes(idx, bytes_tuple) for idx, bytes_tuple in enumerate(corpus_raw)]
     word_positions2 = {x.label : word_positions[x.value] for x in corpus}
 
-    pair_freq_dict, pair_positions_map = init_frequencies(distinct_words, word_positions)
+    pair_positions_map = init_frequencies(distinct_words, word_positions)
 
-    heap_queue = []
-    init_heap_queue(heap_queue, pair_positions_map)
+    heap_queue = init_heap_queue(pair_positions_map)
 
     for epoch in range(num_merges):
         top_freq, _, top_pair = pop_best_pair(heap_queue, pair_positions_map)
@@ -235,14 +230,16 @@ def train_fast_bpe (corpus_raw: list[tuple[bytes]],  distinct_words: Counter, wo
         vocab[new_idx] = new_token
         
         delta_positions_map = merge(corpus, top_pair, new_token, pair_positions_map, word_positions2)
-        print(f'Affected byte pairs in this epoch = {len(delta_positions_map)}')
         merges.append((top_pair.a, top_pair.b))
 
         try:
-            init_heap_queue(heap_queue, delta_positions_map)
+            for p, positions in delta_positions_map.items():
+                tup = build_heap_item(p, positions)
+                heapq.heappush(heap_queue, tup)
+
         except Exception as ex:
             print(ex)
-    
+        pass
     return merges
 
 if __name__ == "__main__":
