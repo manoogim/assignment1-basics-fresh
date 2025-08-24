@@ -1,0 +1,222 @@
+import heapq
+from collections import Counter, defaultdict
+from typing import NamedTuple, Tuple, List, Dict, Set, Optional
+from dataclasses import dataclass
+# from collections import Counter
+# from typing import Dict, Set, Tuple
+from cs336_basics.pretokenization_example import pretokenize
+from tests.common import FIXTURES_PATH
+
+
+class ReverseBytes:
+    def __init__(self, b):
+        self.b = b  # b should be a bytes or tuple of ints
+
+    def __lt__(self, other):
+        # Reverse the normal comparison
+        return self.b > other.b
+
+    def __gt__(self, other):
+        return self.b < other.b
+    
+    def __eq__(self, other):
+        return self.b == other.b
+
+    def __le__(self, other):
+        # Reverse the normal comparison
+        return self.b >= other.b
+
+    def __ge__(self, other):
+        return self.b <= other.b
+    
+    def __repr__(self):
+        return f"ReverseBytes({self.b})"
+class BytesPair(NamedTuple):
+    a: bytes
+    b: bytes
+
+class HeapEntry(NamedTuple):
+    freq: int
+    tie_breaker: ReverseBytes
+    byte_pair: BytesPair
+
+class BpeWord(NamedTuple):
+    label: str
+    value: tuple[bytes]
+    idx: int
+
+def word_from_bytes(idx, list_or_tuple):
+    try:
+        full_bytes = b''.join(list_or_tuple)
+        label = full_bytes.decode('utf-8')
+        return BpeWord(label, list_or_tuple, idx)
+    except Exception as ex:
+        raise ex
+
+Corpus = List[BpeWord]
+
+PositionsMap = defaultdict[BytesPair,set[int]] 
+
+def ppp(key: BytesPair, positions_map:PositionsMap) -> str:
+    sorted_positions = sorted(positions_map[key])
+    lines = [f"*** {key} **** ["]
+    for p in sorted_positions:
+        lines.append(
+            f"  {p}, "
+        )
+    lines.append("]\n")
+    return "".join(lines)
+
+def pppf(pairs: set[BytesPair], positions_map: PositionsMap):
+    for bp in pairs:
+        print(ppp(bp, positions_map))
+    pass
+
+def init_frequencies(distinct_words: Counter[tuple[bytes]], positions: dict[tuple[bytes], set[int]]):
+    """
+    inputs:
+        distinct_words is a dict which shows how many times each word appears in the entire corpus
+        positions is a dict which shows in which corpus positions those words appear
+
+    outputs:
+        dict which shows how many times each distinct byte_pair appears in the corpus
+        dict which shows set if word idx in corpus where each byte pair appears
+        note: count of the positions in second dict should equal the frequency in first dict
+
+    """
+    pair_freq_dict: Counter[BytesPair] = Counter()
+    pair_positions_dict: PositionsMap = defaultdict(set)
+    for dw in distinct_words:
+        word_len = len(dw)
+        for ii in range(word_len - 1):
+            bp = BytesPair(dw[ii], dw[ii+1])
+            cnt = distinct_words[dw]
+            pair_freq_dict[bp] += cnt
+            word_positions = positions[dw]
+            pair_positions_dict[bp].update(word_positions)
+
+    return pair_freq_dict, pair_positions_dict
+
+def init_heap_queue(pair_positions_dict: PositionsMap) -> List[HeapEntry]:
+    # build max-heap using negative frequency
+    freq_heap: list[HeapEntry] = []
+    for k, v in pair_positions_dict.items():
+        # for tie-breaking: pick lexicographically larger
+        rank = ReverseBytes(k)
+        f = - len(v)
+        tup = HeapEntry (f, rank, k)
+        freq_heap.append(tup)
+    
+    heapq.heapify(freq_heap)
+    return freq_heap
+
+
+def pop_best_pair(myheap, positions_dict: PositionsMap):
+    while myheap:
+        freq_neg, r, pair = heapq.heappop(myheap)
+        pair_positions = positions_dict[pair]
+        if -freq_neg == len(pair_positions):
+            return freq_neg, r, pair
+    return 0, None, None
+
+def merge2( corpus: Corpus, top_pair: BytesPair, new_token, positions_dict: PositionsMap):
+        
+    def collect_pair_neighbors(bytes_tuple, idx):
+        result = set()
+        if idx - 1 >= 0:
+            left = BytesPair(bytes_tuple[idx - 1],bytes_tuple[idx])
+            result.add(left)
+        if idx + 2 <= len(bytes_tuple) -1:
+            right = BytesPair(bytes_tuple[idx + 1],bytes_tuple[idx + 2])
+            result.add(right)
+        
+        return result
+        
+    def create_new_word(word: BpeWord, byte_pair:BytesPair, new_token: bytes):
+        ii = 0
+        new_word = []
+        removed_pairs = set()
+        added_pairs = set()
+        while ii < len(word.value) - 1:
+            if (word.value[ii], word.value[ii + 1]) == byte_pair:
+                if len(new_word) > ii - 1 and ii - 1 >= 0:
+                    added_pairs.add(BytesPair(new_word[ii -1], new_token))
+                else:
+                    pass
+                new_word.append(new_token)
+                removed_pairs.update(collect_pair_neighbors(word.value, ii))
+                
+                ii += 2  # Skip the merged pair and new pair that was formed
+                if ii < len(word.value):
+                    added_pairs.add(BytesPair(new_token, word.value[ii]))
+            else:
+                new_word.append(word.value[ii])
+                ii += 1
+        if ii == len(word.value) - 1:
+            new_word.append(word.value[-1])
+            
+        if len(new_word) == 1:
+             # Not sure if if collected new pair? ex: b'low'
+             pass
+        return word_from_bytes(word.idx, new_word), removed_pairs, added_pairs
+        
+    def adjust_positions(word_idx: int, positions_dict: PositionsMap, removed_pairs:set[BytesPair], added_pairs: set[BytesPair]):
+        for rp in removed_pairs:
+            affected_positions: set[int] = positions_dict[rp]
+            affected_positions.discard(word_idx)
+        for ap in added_pairs:
+            affected_positions: set[int] = positions_dict[ap]
+            affected_positions.add(word_idx)
+        pass
+
+    positions = sorted(positions_dict[top_pair])
+    affected_pairs = set()
+    for word_idx in positions:
+        old_word = corpus[word_idx]
+        new_word, removed_pairs, added_pairs = create_new_word(old_word, top_pair, new_token)
+        corpus[word_idx] = new_word
+        # print(f'removed_pairs for word idx {word_idx} are {removed_pairs}, added pairs are {added_pairs}')
+        adjust_positions(word_idx, positions_dict,removed_pairs,added_pairs)
+        affected_pairs.update(removed_pairs)
+        affected_pairs.update(added_pairs)
+        affected_pairs.add(top_pair)
+
+    positions_dict[top_pair] = set()
+    # pppf(affected_pairs, positions_dict)
+    pass
+
+def train_fast_bpe2 (corpus_raw: list[tuple[bytes]],  distinct_words: Counter, word_positions: dict, vocab, num_merges):
+
+    merges = []
+    corpus: Corpus = [word_from_bytes(idx, bytes_tuple) for idx, bytes_tuple in enumerate(corpus_raw)]
+    pair_freq_dict, positions_dict = init_frequencies(distinct_words, word_positions)
+
+    heap_queue = init_heap_queue(positions_dict)
+
+    for epoch in range(num_merges):
+        top_freq, rank, top_pair = pop_best_pair(heap_queue, positions_dict)
+        print(f"Epoch= {epoch}, best pair/freq = {top_pair} / {-top_freq}")
+        if not top_pair:
+            print('Breaking early - no more pairs')
+            break
+        new_idx = len(vocab)
+        new_token = b''.join(top_pair)
+        vocab[new_idx] = new_token
+        merge2(corpus, top_pair, new_token,  positions_dict)
+
+        merges.append((top_pair.a, top_pair.b))
+
+        try:
+            heap_queue = init_heap_queue(positions_dict)
+        except Exception as ex:
+            print(ex)
+    
+    return merges
+
+if __name__ == "__main__":
+    corpus_path = FIXTURES_PATH / "low_lower_bpe.txt"
+    special_tokens = ["<|endoftext|>"]
+    ids = pretokenize(corpus_path, special_tokens, 4)
+    num_merges = 6
+    vocab, merges = train_fast_bpe(ids, num_merges)
+    print(merges)
