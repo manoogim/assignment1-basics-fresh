@@ -5,6 +5,14 @@ from functools import lru_cache
 
 FIXTURES_PATH = (pathlib.Path(__file__).resolve().parent) / "fixtures"
 
+GPT2_SPLIT_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+
+def add_vocab_words(v: dict[int,bytes], words: list[str]):
+    nn = len(v)
+    for ii in range(len(words)):
+        idx = nn + ii
+        word = words[ii]
+        v[idx] = bytes(word.encode('utf-8'))
 
 @lru_cache
 def gpt2_bytes_to_unicode() -> dict[int, str]:

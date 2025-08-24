@@ -9,6 +9,10 @@ import numpy.typing as npt
 import torch
 from torch import Tensor
 
+from cs336_basics.pretokenization_example import pretokenize, pretokenize_parallel
+from tests.common import add_vocab_words
+from tests.fast_bpe import train_fast_bpe
+
 
 def run_linear(
     d_in: int,
@@ -300,7 +304,7 @@ def run_transformer_lm(
         num_heads (int): Number of heads to use in multi-headed attention. `d_model` must be
             evenly divisible by `num_heads`.
         d_ff (int): Dimensionality of the feed-forward inner layer (section 3.3).
-        rope_theta (float): The RoPE $\Theta$ parameter.
+        rope_theta (float): The RoPE $Theta$ parameter.
         weights (dict[str, Tensor]):
             State dict of our reference implementation. {num_layers} refers to an
             integer between `0` and `num_layers - 1` (the layer index).
@@ -589,4 +593,14 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    num_merges = vocab_size - len(special_tokens) - 256
+    print(f"\nvocab_size={vocab_size}, num merges={num_merges}")
+    if (num_merges < 0):
+        raise Exception('Vocab size is too small')
+    
+    ids, distinct_words, word_positions = pretokenize_parallel(input_path, special_tokens, 4)
+    vocab = {idx: bytes([idx]) for idx in range(256)}
+    add_vocab_words(vocab, special_tokens)
+
+    merges = train_fast_bpe(ids, distinct_words, word_positions, vocab, num_merges)
+    return vocab, merges
