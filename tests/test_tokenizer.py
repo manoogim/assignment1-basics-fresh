@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 import os
-import resource
 import sys
 
+if sys.platform != "win32":
+    import resource
+else:
+    resource = None
 import psutil
 import pytest
 import tiktoken
