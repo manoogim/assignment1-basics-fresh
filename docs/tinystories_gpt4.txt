@@ -1,0 +1,18 @@
+Running pretokenize with 12 workers ...
+[worker pid=19932] bytes=185,646,843  read=1.0s  decode=0.2s  split=0.3s  regex_scan=233.3s  total=234.8s
+[worker pid=16712] bytes=185,645,903  read=1.6s  decode=0.1s  split=0.3s  regex_scan=239.9s  total=241.9s
+[worker pid=2692] bytes=185,644,775  read=2.5s  decode=0.6s  split=0.4s  regex_scan=240.8s  total=244.4s
+[worker pid=14608] bytes=185,645,671  read=2.5s  decode=0.2s  split=0.6s  regex_scan=244.2s  total=247.4s
+[worker pid=5600] bytes=185,646,374  read=0.9s  decode=0.5s  split=0.3s  regex_scan=249.0s  total=250.7s
+[worker pid=25968] bytes=185,645,944  read=2.5s  decode=0.1s  split=0.5s  regex_scan=248.3s  total=251.4s
+[worker pid=26768] bytes=185,647,368  read=5.3s  decode=0.4s  split=0.5s  regex_scan=245.8s  total=252.0s
+[worker pid=24828] bytes=185,646,094  read=7.4s  decode=0.7s  split=0.7s  regex_scan=245.1s  total=254.0s
+[worker pid=24260] bytes=185,646,234  read=4.5s  decode=0.3s  split=0.3s  regex_scan=249.8s  total=254.9s
+[worker pid=27508] bytes=185,646,237  read=9.0s  decode=0.3s  split=1.3s  regex_scan=244.7s  total=255.3s
+[worker pid=22764] bytes=185,645,290  read=7.6s  decode=0.2s  split=0.7s  regex_scan=247.4s  total=256.1s
+[worker pid=11544] bytes=185,646,429  read=9.4s  decode=0.7s  split=1.3s  regex_scan=245.3s  total=256.8s
+merge 9743/9743  pair=( bo, ld)  freq=447  vocab_size=10000  time=2026-08-12 12:07:05
+BPE Training took 260.9 seconds. Vocab size=10000, merge pairs=9743
+Longest word is b' accomplishment'
+{'prefix': 'tinystories_GPT4', 'num_workers': 12, 'input_path': 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\data\\TinyStoriesV2-GPT4-train.txt', 'vocab_size': 10000, 'special_tokens': ['<|endoftext|>'], 'num_merges': 9743, 'trained_at': '2026-08-12 12:02:44', 'trained_sec': '260.9 seconds', 'longest_word': ' accomplishment'}
+Serialized config, vocab and merges to out/tinystories_GPT4
