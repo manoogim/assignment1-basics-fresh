@@ -41,7 +41,7 @@ def apply_one_merge(best_pair, affected_ids, pretokens, pair_counts, reverse_ind
             add_new_pair(heap, pair, new_count)
 
 
-def train( input_path: str | os.PathLike, vocab_size: int, special_tokens_arr: list[str], num_workers=1, log_every=None) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
+def train( input_path: str | os.PathLike, vocab_size: int, special_tokens_arr: list[str], desired_chunks=4, num_workers=1, log_every=None) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
 # Input
     # input_path: str Path to a text file with BPE tokenizer training data.
     # vocab_size: int A positive integer that defines the maximum final vocabulary size (including the initial byte vocabulary, vocabulary items produced from merging, and any special tokens).
@@ -50,7 +50,10 @@ def train( input_path: str | os.PathLike, vocab_size: int, special_tokens_arr: l
     # vocab: dict[int, bytes] The tokenizer vocabulary, a mapping from int (token ID in the vocabulary) to bytes (token bytes).
     # merges: list[tuple[bytes, bytes]] A list of BPE merges produced from training. Each list item is a tuple of bytes (<token1>, <token2>), representing that <token1> was merged with <token2>. The merges should be ordered by order of creation.
 
-    pretokens: list[PreToken] = pretokenize(input_path, special_tokens_arr, desired_chunks=num_workers)
+    start = time.perf_counter()
+    pretokens: list[PreToken] = pretokenize(input_path, special_tokens_arr, desired_chunks, num_workers)
+    pretok_done = time.perf_counter()
+    print(f"[train_bpe] pretokenization complete: {pretok_done - start:.1f}s")
 
     pair_counts: PairFrequencyTable = defaultdict(int)
     reverse_index: ReverseIndex = defaultdict(set)
@@ -83,10 +86,11 @@ def train( input_path: str | os.PathLike, vocab_size: int, special_tokens_arr: l
         if (log_every is not None and (jj % log_every == 0 ) or jj == num_merges - 1):          
             print(
                 f"merge {jj+1}/{num_merges}  "
-                f"pair={best_pair}  freq={freq}  "
+                f"pair={best_pair}  freq={-freq}  "
                 f"vocab_size={len(vocab)}  "
                 f"time={time.strftime("%Y-%m-%d %H:%M:%S")}"
             )
+    print(f"[train_bpe] merge loop complete: {time.perf_counter() - pretok_done:.1f}s")
     return vocab, merges
 
 def serialize(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], prefix: str, metadata: dict):
@@ -119,10 +123,10 @@ def serialize(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], prefix
 
     print(f"Serialized config, vocab and merges to {path}")
 
-def train_bpe(input_path: str | os.PathLike, vocab_size: int, special_tokens_arr: list[str], num_workers=1, prefix = None, log_every=None) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
-
+def train_bpe(input_path: str | os.PathLike, vocab_size: int, special_tokens_arr: list[str], desired_chunks=100, num_workers=1, prefix = None, log_every=None) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
+    trained_at = time.strftime("%Y-%m-%d %H:%M:%S")
     t0 = time.perf_counter()
-    vocab, merges = train(input_path, vocab_size, special_tokens_arr, num_workers=num_workers, log_every=log_every) 
+    vocab, merges = train(input_path, vocab_size, special_tokens_arr, desired_chunks=desired_chunks, num_workers=num_workers, log_every=log_every) 
     elapsed = time.perf_counter() - t0
 
     print(f"BPE Training took {elapsed:.1f} seconds. Vocab size={len(vocab)}, merge pairs={len(merges)}")
@@ -132,11 +136,12 @@ def train_bpe(input_path: str | os.PathLike, vocab_size: int, special_tokens_arr
         metadata = {
             "prefix": prefix,
             "num_workers": num_workers,
+            "desired_chunks": desired_chunks,
             "input_path": str(input_path),
             "vocab_size": vocab_size,
             "special_tokens": special_tokens_arr,
             "num_merges": len(merges),
-            "trained_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "trained_at": trained_at,
             "trained_sec": f"{elapsed:.1F} seconds",
             "longest_word": max_value.decode('UTF-8')
         }
@@ -144,22 +149,36 @@ def train_bpe(input_path: str | os.PathLike, vocab_size: int, special_tokens_arr
         serialize(vocab, merges, prefix, metadata)
     return vocab, merges
 
+def train_owt():
+    corpus_path = r"C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\owt_train.txt"
+    special_token = "<|endoftext|>"
+    vocab_size = 32000
+    # smaller number of workers to avoid competing for memory
+    vocab, merges = train_bpe(corpus_path, vocab_size, [special_token], desired_chunks= 16, num_workers=2, prefix='owt', log_every=500) 
+
+def train_tinystories_gpt4():
+    corpus_path = r"C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\TinyStoriesV2-GPT4-train.txt"
+    special_token = "<|endoftext|>"
+    vocab_size = 10000
+    vocab, merges = train_bpe(corpus_path, vocab_size, [special_token], desired_chunks= 8, num_workers=4, prefix='tinystories_GPT4',log_every=500) 
+
 def train_tiny_stories():
     corpus_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\fixtures\tinystories_sample_5M.txt'
     special_token = "<|endoftext|>"
     vocab_size = 10000
-    vocab, merges = train_bpe(corpus_path, vocab_size, [special_token], num_workers=4, prefix='tinystories_5M', log_every=500) 
+    vocab, merges = train_bpe(corpus_path, vocab_size, [special_token], desired_chunks=4, num_workers=4, prefix='tinystories_5M', log_every=500) 
 
 def train_low_lower():
     corpus_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\fixtures\low_lower_bpe.txt'
     special_token = "<|endoftext|>"
     vocab_size = 300
     
-    vocab, merges = train_bpe(corpus_path, vocab_size, [special_token], prefix='lowlower')
+    vocab, merges = train_bpe(corpus_path, vocab_size, [special_token], prefix='lowlower', log_every=1)
 
     
 
 if __name__ == "__main__":
-    # train_low_lower()
-    train_tiny_stories()
+    # train_tiny_stories()
+    train_tinystories_gpt4()
+    # train_owt()
 

@@ -1,7 +1,21 @@
+import os
+import pickle
+
 import regex as re
 
 from tests.bpe_types import GPT2_SPLIT_PATTERN
 
+
+
+def from_pkl (vocab_folder: str , special_tokens: list):
+    vocab_path = f'{vocab_folder}\\vocab.pkl'
+    merges_path = f'{vocab_folder}\\merges.pkl'
+    with open(vocab_path, 'rb') as ff:
+        vocab = pickle.load(ff, encoding='utf-8', errors='strict')
+    with open(merges_path, 'rb') as ff:
+        merges = pickle.load(ff, encoding='utf-8', errors='strict')
+    tokenizer = BpeTokenizer(vocab, merges, special_tokens)
+    return tokenizer
 
 class BpeTokenizer:
     def __init__(self, vocab: dict[int,bytes], merges: list[tuple[bytes,bytes]], special_tokens: list[str]=None) -> None:
