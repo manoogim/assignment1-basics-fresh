@@ -1,7 +1,7 @@
 # this code is adopted from https://github.com/stanford-cs336/assignment1-basics/blob/main/cs336_basics/pretokenization_example.py
 
 import os
-import pathlib
+import time
 from typing import BinaryIO
 import regex as re
 
@@ -64,14 +64,21 @@ def find_chunk_boundaries_v2(input_path: str, desired_num_chunks: int, split_spe
         return list(start_end_pairs)
 
 def pretokenize_chunk(start, end, input_path, special_tokens_arr) -> FrequencyTable:
+    t0 = time.perf_counter()
     with open(input_path, 'rb') as f:
         f.seek(start)
-        chunk_text = f.read(end - start).decode("utf-8", errors="strict")
+        raw = f.read(end - start)
+        t1 = time.perf_counter()
+
+        chunk_text = raw.decode("utf-8", errors="strict")
+        del raw
+        t2 = time.perf_counter()
 
         # 1. Segment on special tokens — this pattern exists ONLY to split
         #    documents apart; it is not the pattern that produces pre-tokens.
         special_pattern = "|".join(re.escape(t) for t in special_tokens_arr)
         doc_arr = re.split(special_pattern, chunk_text) if special_pattern else [chunk_text]
+        t3 = time.perf_counter()
 
         # 2. Pre-tokenize each document independently with the GPT-2 regex —
         #    this is the pattern that actually produces pre-tokens.
@@ -85,34 +92,43 @@ def pretokenize_chunk(start, end, input_path, special_tokens_arr) -> FrequencyTa
                 symbol = tuple(bytes([b]) for b in chunk.encode("utf-8"))
                 # symbol = tuple(ch.encode("utf-8") for ch in chunk)
                 frequency[symbol] += 1  # Use the encoded bytes tuple as the key for frequency counting
+        t4 = time.perf_counter()
 
+        print(
+        f"[worker pid={os.getpid()}] "
+        f"bytes={end-start:,}  "
+        f"read={t1-t0:.1f}s  decode={t2-t1:.1f}s  split={t3-t2:.1f}s  "
+        f"regex_scan={t4-t3:.1f}s  total={t4-t0:.1f}s"
+    )
     return frequency
 
 def pretokenize_serial(input_path, special_tokens_arr, start_end_pairs) -> list[FrequencyTable]:  
-    if len(start_end_pairs) != 1:
-        raise Exception("Expected exactly one start-end pair for serial pretokenization.")
-    start = start_end_pairs[0][0]
-    end = start_end_pairs[0][1]
-    freq_tbl = pretokenize_chunk(start, end, input_path, special_tokens_arr)
-    return [freq_tbl]
 
-def pretokenize_parallel(input_path, special_token_arr, start_end_pairs) -> list[FrequencyTable]:
-    args = [(start, end, input_path, special_token_arr) for start,end in start_end_pairs]
-
-    with Pool() as pool:
-        worker_results = pool.starmap(pretokenize_chunk, args)
+    results = []
+    for start, end in start_end_pairs:
+        freq_tbl = pretokenize_chunk(start, end, input_path, special_tokens_arr)
+        results.append(freq_tbl)
+    return results
 
     return worker_results
+def pretokenize_parallel(input_path, special_token_arr, start_end_pairs, num_workers=4) -> list[FrequencyTable]:
+    args = [(start, end, input_path, special_token_arr) for start, end in start_end_pairs]
+    with Pool(processes=num_workers) as pool:
+        worker_results = pool.starmap(pretokenize_chunk, args)
+    return worker_results
 
-def pretokenize(input_path, special_tokens_arr, desired_chunks=1) -> list[PreToken]:
+def pretokenize(input_path, special_tokens_arr, desired_chunks=4, num_workers=1) -> list[PreToken]:
     if len(special_tokens_arr) == 0:
-        raise Exception('At least one special token required')
-    start_end_pairs = find_chunk_boundaries_v2(input_path, desired_chunks, special_tokens_arr[0].encode('utf-8'))
+        raise Exception('At least one special token required.')
+
+    if desired_chunks % num_workers != 0:
+        raise Exception('Number of chunks must be divisible by number of workers.')
     partial_counts: list[FrequencyTable] = []
-    if desired_chunks == 1:
+    start_end_pairs = find_chunk_boundaries_v2(input_path, desired_chunks, special_tokens_arr[0].encode('utf-8'))
+    if num_workers == 1:
         partial_counts = pretokenize_serial(input_path, special_tokens_arr, start_end_pairs)
     else:
-        partial_counts = pretokenize_parallel(input_path, special_tokens_arr, start_end_pairs)
+        partial_counts = pretokenize_parallel(input_path, special_tokens_arr, start_end_pairs, num_workers)
 
  # Merge all partial frequency tables
     global_counts = Counter()
@@ -123,15 +139,16 @@ def pretokenize(input_path, special_tokens_arr, desired_chunks=1) -> list[PreTok
     return result
 
 
-## Usage
 if __name__ == "__main__":
 
     corpus_path = 'C:\\Users\\Melissa\\cs336\\assignment1-basics\\tests\\fixtures\\tinystories_sample.txt'
     # corpus_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\fixtures\low_lower_bpe.txt'
+    # corpus_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\TinyStoriesV2-GPT4-train.txt'
  
     desired_num_chunks = 4
     special_token = "<|endoftext|>"
-    pretokens = pretokenize(corpus_path, [special_token], desired_num_chunks)
+    num_workers = 2
+    pretokens = pretokenize(corpus_path, [special_token], desired_chunks=desired_num_chunks, num_workers=num_workers)
     print(f"\n\nPreTokens: {pretokens}")
 
 

@@ -241,9 +241,9 @@ Serialized config, vocab and merges to out/owt
 ```
 
 # bpe_train owt sample 2.2GB with 32k vocab, 4 workers
-pretokenize= 13,173
-merging = 17,136
-total= 30,309
+pretokenize= 13,173 sec
+merging = 17,136 sec
+total= 30,309 sec
 ```
 bpe_train.py
 Running pretokenize with 4 workers on C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\owt_train.txt_sample_2228mb.txt...
@@ -325,4 +325,168 @@ Longest word is b'--------------------------------------------------------------
 {'prefix': 'owt', 'num_workers': 4, 'input_path': 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\data\\owt_train.txt_sample_2228mb.txt', 'vocab_size': 32000, 'special_tokens': ['<|endoftext|>'], 'num_merges': 31743, 'trained_at': '2026-08-12 23:23:28', 'trained_sec': '30309.9 seconds', 'longest_word': '----------------------------------------------------------------'}
 Serialized config, vocab and merges to out/owt
 ```
+# bpe_train entire owt of 6GB with 32GB, 2 workers and 16 desired_chunks 
+Code was running out of RAM with both memory and disk showing 99% usage.
+Changed code to decouple num_workers and num_chunks, so that we can make smaller memory chunks, i.e. num_chunks > num_workers
+pretokenize= 1195 sec
+merging = 400 sec
+total= 1595 sec
 
+Result is 26 minutes of training (1595 sec), with 1195 sec pretokenization and 400 sec merge loop.
+```
+bpe_train.py
+[worker pid=16464] bytes=375,292,375  read=0.2s  decode=0.4s  split=0.6s  regex_scan=144.7s  total=146.0s
+[worker pid=12580] bytes=375,293,901  read=0.1s  decode=0.4s  split=0.6s  regex_scan=147.3s  total=148.4s
+[worker pid=16464] bytes=375,290,373  read=0.2s  decode=0.7s  split=0.9s  regex_scan=186.9s  total=188.7s
+[worker pid=12580] bytes=375,292,097  read=0.2s  decode=0.6s  split=1.0s  regex_scan=185.2s  total=187.0s
+[worker pid=16464] bytes=375,319,120  read=0.3s  decode=0.4s  split=0.6s  regex_scan=136.5s  total=137.8s
+[worker pid=12580] bytes=375,292,893  read=0.3s  decode=0.4s  split=0.5s  regex_scan=143.0s  total=144.3s
+[worker pid=16464] bytes=375,264,371  read=0.3s  decode=0.4s  split=0.6s  regex_scan=139.4s  total=140.6s
+[worker pid=12580] bytes=375,301,569  read=0.6s  decode=0.4s  split=0.5s  regex_scan=140.2s  total=141.7s
+[worker pid=16464] bytes=375,298,585  read=0.3s  decode=0.5s  split=0.7s  regex_scan=138.4s  total=139.8s
+[worker pid=12580] bytes=375,296,319  read=0.3s  decode=0.6s  split=0.7s  regex_scan=139.5s  total=141.1s
+[worker pid=16464] bytes=375,277,322  read=0.3s  decode=0.4s  split=0.6s  regex_scan=126.7s  total=128.0s
+[worker pid=12580] bytes=375,285,945  read=0.4s  decode=0.6s  split=0.6s  regex_scan=127.4s  total=129.0s
+[worker pid=16464] bytes=375,292,924  read=0.3s  decode=0.5s  split=0.6s  regex_scan=176.2s  total=177.6s
+[worker pid=12580] bytes=375,291,358  read=0.3s  decode=0.6s  split=0.7s  regex_scan=167.4s  total=169.0s
+[worker pid=16464] bytes=375,303,808  read=0.3s  decode=0.4s  split=0.7s  regex_scan=121.2s  total=122.5s
+[worker pid=12580] bytes=375,277,504  read=0.3s  decode=0.4s  split=0.6s  regex_scan=120.5s  total=121.8s
+merge 1/31743  pair=( , t)  freq=130278115  vocab_size=258  time=2026-08-13 23:01:14
+merge 501/31743  pair=( ne, ed)  freq=992308  vocab_size=758  time=2026-08-13 23:04:17
+merge 1001/31743  pair=(l, ess)  freq=437326  vocab_size=1258  time=2026-08-13 23:04:39
+merge 1501/31743  pair=( under, stand)  freq=268477  vocab_size=1758  time=2026-08-13 23:04:54
+merge 2001/31743  pair=( hour, s)  freq=191725  vocab_size=2258  time=2026-08-13 23:05:04
+merge 2501/31743  pair=( m, other)  freq=145410  vocab_size=2758  time=2026-08-13 23:05:15
+merge 3001/31743  pair=( pract, ice)  freq=114566  vocab_size=3258  time=2026-08-13 23:05:21
+merge 3501/31743  pair=(en, cies)  freq=93239  vocab_size=3758  time=2026-08-13 23:05:26
+merge 4001/31743  pair=(ri, al)  freq=76952  vocab_size=4258  time=2026-08-13 23:05:36
+merge 4501/31743  pair=(ter, y)  freq=65898  vocab_size=4758  time=2026-08-13 23:05:41
+merge 5001/31743  pair=( t, ast)  freq=56694  vocab_size=5258  time=2026-08-13 23:05:46
+merge 5501/31743  pair=( M, em)  freq=49222  vocab_size=5758  time=2026-08-13 23:05:50
+merge 6001/31743  pair=(d, is)  freq=43873  vocab_size=6258  time=2026-08-13 23:05:59
+merge 6501/31743  pair=( vol, ume)  freq=39486  vocab_size=6758  time=2026-08-13 23:06:02
+merge 7001/31743  pair=( tick, et)  freq=35418  vocab_size=7258  time=2026-08-13 23:06:05
+merge 7501/31743  pair=( in, ev)  freq=32078  vocab_size=7758  time=2026-08-13 23:06:07
+merge 8001/31743  pair=( st, eal)  freq=28855  vocab_size=8258  time=2026-08-13 23:06:09
+merge 8501/31743  pair=( innov, ation)  freq=26393  vocab_size=8758  time=2026-08-13 23:06:11
+merge 9001/31743  pair=(m, ans)  freq=24187  vocab_size=9258  time=2026-08-13 23:06:19
+merge 9501/31743  pair=(net, ic)  freq=22483  vocab_size=9758  time=2026-08-13 23:06:21
+merge 10001/31743  pair=( Cap, tain)  freq=20669  vocab_size=10258  time=2026-08-13 23:06:23
+merge 10501/31743  pair=( bomb, ing)  freq=19110  vocab_size=10758  time=2026-08-13 23:06:25
+merge 11001/31743  pair=( H, ans)  freq=17834  vocab_size=11258  time=2026-08-13 23:06:26
+merge 11501/31743  pair=(st, ring)  freq=16642  vocab_size=11758  time=2026-08-13 23:06:28
+merge 12001/31743  pair=(ag, raph)  freq=15656  vocab_size=12258  time=2026-08-13 23:06:29
+merge 12501/31743  pair=(inc, inn)  freq=14656  vocab_size=12758  time=2026-08-13 23:06:30
+merge 13001/31743  pair=( mon, op)  freq=13776  vocab_size=13258  time=2026-08-13 23:06:32
+merge 13501/31743  pair=( Ar, men)  freq=13003  vocab_size=13758  time=2026-08-13 23:06:33
+merge 14001/31743  pair=( d, ioxide)  freq=12294  vocab_size=14258  time=2026-08-13 23:06:43
+merge 14501/31743  pair=( 197, 7)  freq=11672  vocab_size=14758  time=2026-08-13 23:06:44
+merge 15001/31743  pair=( H, orn)  freq=11085  vocab_size=15258  time=2026-08-13 23:06:45
+merge 15501/31743  pair=( bas, eline)  freq=10543  vocab_size=15758  time=2026-08-13 23:06:46
+merge 16001/31743  pair=( hor, rific)  freq=10023  vocab_size=16258  time=2026-08-13 23:06:48
+merge 16501/31743  pair=(lin, ing)  freq=9528  vocab_size=16758  time=2026-08-13 23:06:49
+merge 17001/31743  pair=( F, alls)  freq=9035  vocab_size=17258  time=2026-08-13 23:06:49
+merge 17501/31743  pair=(ie, ce)  freq=8607  vocab_size=17758  time=2026-08-13 23:06:51
+merge 18001/31743  pair=(us, p)  freq=8250  vocab_size=18258  time=2026-08-13 23:06:52
+merge 18501/31743  pair=( wh, ales)  freq=7923  vocab_size=18758  time=2026-08-13 23:06:53
+merge 19001/31743  pair=(respons, ible)  freq=7552  vocab_size=19258  time=2026-08-13 23:06:54
+merge 19501/31743  pair=( ste, alth)  freq=7222  vocab_size=19758  time=2026-08-13 23:06:55
+merge 20001/31743  pair=( Me, yer)  freq=6947  vocab_size=20258  time=2026-08-13 23:06:56
+merge 20501/31743  pair=(w, ic)  freq=6670  vocab_size=20758  time=2026-08-13 23:06:57
+merge 21001/31743  pair=(Serv, ice)  freq=6405  vocab_size=21258  time=2026-08-13 23:06:59
+merge 21501/31743  pair=(s, or)  freq=6157  vocab_size=21758  time=2026-08-13 23:07:08
+merge 22001/31743  pair=( 195, 4)  freq=5952  vocab_size=22258  time=2026-08-13 23:07:09
+merge 22501/31743  pair=( hit, ter)  freq=5746  vocab_size=22758  time=2026-08-13 23:07:10
+merge 23001/31743  pair=( undergrad, uate)  freq=5537  vocab_size=23258  time=2026-08-13 23:07:11
+merge 23501/31743  pair=( P, ull)  freq=5323  vocab_size=23758  time=2026-08-13 23:07:12
+merge 24001/31743  pair=( out, ward)  freq=5138  vocab_size=24258  time=2026-08-13 23:07:13
+merge 24501/31743  pair=( text, ures)  freq=4968  vocab_size=24758  time=2026-08-13 23:07:15
+merge 25001/31743  pair=(W, ay)  freq=4814  vocab_size=25258  time=2026-08-13 23:07:15
+merge 25501/31743  pair=( turb, ines)  freq=4663  vocab_size=25758  time=2026-08-13 23:07:16
+merge 26001/31743  pair=( ded, uction)  freq=4510  vocab_size=26258  time=2026-08-13 23:07:17
+merge 26501/31743  pair=( T, ou)  freq=4373  vocab_size=26758  time=2026-08-13 23:07:18
+merge 27001/31743  pair=(B, ush)  freq=4244  vocab_size=27258  time=2026-08-13 23:07:18
+merge 27501/31743  pair=( p, H)  freq=4115  vocab_size=27758  time=2026-08-13 23:07:19
+merge 28001/31743  pair=( log, os)  freq=3989  vocab_size=28258  time=2026-08-13 23:07:20
+merge 28501/31743  pair=( delay, ing)  freq=3878  vocab_size=28758  time=2026-08-13 23:07:21
+merge 29001/31743  pair=( mascul, inity)  freq=3759  vocab_size=29258  time=2026-08-13 23:07:21
+merge 29501/31743  pair=( star, vation)  freq=3645  vocab_size=29758  time=2026-08-13 23:07:22
+merge 30001/31743  pair=( S, ultan)  freq=3547  vocab_size=30258  time=2026-08-13 23:07:23
+merge 30501/31743  pair=( GPU, s)  freq=3453  vocab_size=30758  time=2026-08-13 23:07:24
+merge 31001/31743  pair=( My, SQL)  freq=3358  vocab_size=31258  time=2026-08-13 23:07:24
+merge 31501/31743  pair=(IC, T)  freq=3264  vocab_size=31758  time=2026-08-13 23:07:25
+merge 31743/31743  pair=( tre, asures)  freq=3218  vocab_size=32000  time=2026-08-13 23:07:26
+BPE Training took 1595.6 seconds. Vocab size=32000, merge pairs=31743
+Longest word is b'----------------------------------------------------------------'
+{'prefix': 'owt', 'num_workers': 2, 'input_path': 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\data\\owt_train.txt', 'vocab_size': 32000, 'special_tokens': ['<|endoftext|>'], 'num_merges': 31743, 'trained_at': '2026-08-13 22:40:55', 'trained_sec': '1595.6 seconds', 'longest_word': '----------------------------------------------------------------'}
+Serialized config, vocab and merges to out/owt
+```
+
+# tokenization experiments
+What is each tokenizer's compression ratio? 4.3 for tinystories and 4.5 for owt.
+
+Results below are for the first ten docs in each dataset.
+```
+bpe_tokenizer_experiments.py
+Subject: Compression results for Tinystories
+Raw Bytes : 740, Total Tokens: 175, Compression Efficiency: 4.23 bytes/token
+Raw Bytes : 663, Total Tokens: 164, Compression Efficiency: 4.04 bytes/token
+Raw Bytes : 515, Total Tokens: 128, Compression Efficiency: 4.02 bytes/token
+Raw Bytes : 859, Total Tokens: 194, Compression Efficiency: 4.43 bytes/token
+Raw Bytes : 956, Total Tokens: 229, Compression Efficiency: 4.17 bytes/token
+Raw Bytes : 680, Total Tokens: 169, Compression Efficiency: 4.02 bytes/token
+Raw Bytes : 626, Total Tokens: 162, Compression Efficiency: 3.86 bytes/token
+Raw Bytes : 441, Total Tokens: 111, Compression Efficiency: 3.97 bytes/token
+Raw Bytes : 1083, Total Tokens: 269, Compression Efficiency: 4.03 bytes/token
+Raw Bytes : 872, Total Tokens: 207, Compression Efficiency: 4.21 bytes/token
+Range: 3.86 - 4.43, Avg: 4.10
+Subject: Compression results for OpenWebText
+Raw Bytes : 4598, Total Tokens: 1038, Compression Efficiency: 4.43 bytes/token
+Raw Bytes : 2449, Total Tokens: 494, Compression Efficiency: 4.96 bytes/token
+Raw Bytes : 2027, Total Tokens: 437, Compression Efficiency: 4.64 bytes/token
+Raw Bytes : 3174, Total Tokens: 703, Compression Efficiency: 4.51 bytes/token
+Raw Bytes : 4674, Total Tokens: 928, Compression Efficiency: 5.04 bytes/token
+Raw Bytes : 3577, Total Tokens: 723, Compression Efficiency: 4.95 bytes/token
+Raw Bytes : 1085, Total Tokens: 242, Compression Efficiency: 4.48 bytes/token
+Raw Bytes : 900, Total Tokens: 197, Compression Efficiency: 4.57 bytes/token
+Raw Bytes : 6654, Total Tokens: 1481, Compression Efficiency: 4.49 bytes/token
+Raw Bytes : 2349, Total Tokens: 477, Compression Efficiency: 4.92 bytes/token
+Range: 4.43 - 5.04, Avg: 4.70
+```
+
+Results below are for selecting random 10 docs with reservoir technique (similar result but takes longer to pick 10 docs):
+```
+bpe_tokenizer_experiments.py
+Subject: Compression results for Tinystories
+Selected 10 from C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\TinyStoriesV2-GPT4-train.txt in 7 seconds.
+Raw Bytes : 1991, Total Tokens: 510, Compression Efficiency: 3.90 bytes/token
+Raw Bytes : 676, Total Tokens: 159, Compression Efficiency: 4.25 bytes/token
+Raw Bytes : 682, Total Tokens: 161, Compression Efficiency: 4.24 bytes/token
+Raw Bytes : 986, Total Tokens: 248, Compression Efficiency: 3.98 bytes/token
+Raw Bytes : 540, Total Tokens: 131, Compression Efficiency: 4.12 bytes/token
+Raw Bytes : 713, Total Tokens: 174, Compression Efficiency: 4.10 bytes/token
+Raw Bytes : 722, Total Tokens: 171, Compression Efficiency: 4.22 bytes/token
+Raw Bytes : 570, Total Tokens: 134, Compression Efficiency: 4.25 bytes/token
+Raw Bytes : 590, Total Tokens: 138, Compression Efficiency: 4.28 bytes/token
+Raw Bytes : 690, Total Tokens: 182, Compression Efficiency: 3.79 bytes/token
+Range: 3.79 - 4.28, Avg: 4.11
+Subject: Compression results for OpenWebText
+Selected 10 from C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\owt_train.txt in 35 seconds.
+Raw Bytes : 15547, Total Tokens: 3339, Compression Efficiency: 4.66 bytes/token
+Raw Bytes : 4956, Total Tokens: 1194, Compression Efficiency: 4.15 bytes/token
+Raw Bytes : 2332, Total Tokens: 476, Compression Efficiency: 4.90 bytes/token
+Raw Bytes : 3756, Total Tokens: 957, Compression Efficiency: 3.92 bytes/token
+Raw Bytes : 2256, Total Tokens: 473, Compression Efficiency: 4.77 bytes/token
+Raw Bytes : 1585, Total Tokens: 336, Compression Efficiency: 4.72 bytes/token
+Raw Bytes : 1084, Total Tokens: 265, Compression Efficiency: 4.09 bytes/token
+Raw Bytes : 3088, Total Tokens: 689, Compression Efficiency: 4.48 bytes/token
+Raw Bytes : 1709, Total Tokens: 411, Compression Efficiency: 4.16 bytes/token
+Raw Bytes : 2137, Total Tokens: 428, Compression Efficiency: 4.99 bytes/token
+Range: 3.92 - 4.99, Avg: 4.48
+```
+What happens when we use owt tokenizer to encode tinystories docs?
+Answer: ratio stays in same vicinity, drops only 2% from 4.1 to 3.9
+
+What happens when we use tinystories tokenizer tp encode owt docs?
+Answer: ratio drops noticeably from 4.5 to 3.3 (27%)
+Explanation: it is not surprising b/c tinystories vocab is likely asubset of owt vocab
