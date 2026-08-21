@@ -31,4 +31,5 @@ jobs:
         run: |
           uv sync
           uv run pytest tests/test_tokenizer.py
+          uv run pytest tests/test_train_bpe.py
           
