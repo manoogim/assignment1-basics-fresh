@@ -1,7 +1,10 @@
+import os
 import random
 import time
 
-from tests.bpe_tokenizer import from_pkl
+import numpy as np
+
+from tests.bpe_tokenizer import from_pkl, read_tokens_binary, write_tokens_binary
 
 def sample_docs(file_path, end_token="<|endoftext|>", num_items=10):
     buf = []
@@ -89,26 +92,44 @@ def calc_ratio(doc_text, tokenizer):
 
 def tinystories_inputs():
     subject= 'Compression results for Tinystories'
-    dataset_file = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\TinyStoriesV2-GPT4-train.txt'
+    dataset_train = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\TinyStoriesV2-GPT4-train.txt'
+    dataset_valid = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\TinyStoriesV2-GPT4-valid.txt'
     vocab_folder = r"C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\out\tinystories_GPT4"
     special_token = '<|endoftext|>'
-    return subject, dataset_file, vocab_folder, special_token
+    return subject, dataset_train, dataset_valid, vocab_folder, special_token
 
 def owt_inputs():
     subject= 'Compression results for OpenWebText'
-    dataset_file = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\owt_train.txt'
+    dataset_train = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\owt_train.txt'
+    dataset_dev = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\data\owt_valid.txt'
     vocab_folder = r"C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\out\owt"
     special_token = '<|endoftext|>'
-    return subject, dataset_file, vocab_folder, special_token
+    return subject, dataset_train, dataset_dev, vocab_folder, special_token
 
-if __name__ ==  '__main__':
-    args_arr = [tinystories_inputs(), owt_inputs()]
-    for subject, dataset_file, vocab_folder, special_token in [tinystories_inputs(), owt_inputs()]:
+
+
+def report_comprehension():
+    for subject, dataset_train, _, vocab_folder, special_token in [tinystories_inputs(), owt_inputs()]:
         print(f'Subject: {subject}')
         tokenizer = from_pkl(vocab_folder, [special_token])
-        ten_stories = sample_docs(dataset_file)
+        ten_stories = sample_docs(dataset_train)
         ratios = [calc_ratio(doc, tokenizer) for doc in ten_stories ]
         my_max = max(ratios)
         my_min = min(ratios)
         my_avg = sum (ratios) / len(ratios)
         print(f'Range: {my_min:.2f} - {my_max:.2f}, Avg: {my_avg:.2f}')
+
+
+def serialize_tokens():
+    for _, dataset_train, dataset_valid, vocab_folder, special_token in [tinystories_inputs(), owt_inputs()]: 
+        tokenizer = from_pkl(vocab_folder, [special_token])
+        write_tokens_binary(dataset_train, tokenizer, os.path.join(vocab_folder,'tokens_train.bin'))
+        write_tokens_binary(dataset_valid, tokenizer, os.path.join(vocab_folder,'tokens_valid.bin'))   
+# def serialize_tinystories_tokens ():
+#     _, dataset_train, dataset_valid, vocab_folder, special_token = tinystories_inputs()
+#     tokenizer = from_pkl(vocab_folder, [special_token])
+#     write_tokens_binary(dataset_train, tokenizer, os.path.join(vocab_folder,'tokens_train.bin'))
+#     # write_tokens_binary(dataset_valid, tokenizer, os.path.join(vocab_folder,'tokens_valid.bin'))
+
+if __name__ == '__main__':
+    serialize_tokens()
