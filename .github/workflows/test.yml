@@ -1,0 +1,33 @@
+name: Run Unit Tests on Linux
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # Allows you to manually trigger it from the Actions tab!
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout your code from git
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up uv using Astral's official action
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true # Speeds up subsequent runs by caching dependencies
+
+      # 3. Set up Python (uv can manage this, but you can pin a version if needed)
+      - name: Set up Python
+        run: uv python install
+
+      # 4. Install dependencies and run your test suite
+      - name: Run tests
+        run: |
+          uv sync
+          uv run pytest
