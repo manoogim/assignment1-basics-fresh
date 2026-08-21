@@ -1,11 +1,10 @@
 import os
 import pickle
 
+import numpy as np
 import regex as re
 
 from tests.bpe_types import GPT2_SPLIT_PATTERN
-
-
 
 def from_pkl (vocab_folder: str , special_tokens: list):
     vocab_path = f'{vocab_folder}\\vocab.pkl'
@@ -94,3 +93,32 @@ def merge_symbols(symbols: list[bytes], pair: tuple[bytes, bytes]) -> list[bytes
             new_symbols.append(symbols[i])
             i += 1
     return new_symbols
+
+
+
+def write_tokens_binary(dataset, tokenizer, tokens_file, buffer_size= 100_000):
+    assert len(tokenizer.vocab) <= 65536, "vocab_size exceeds uint16 range"
+    count=0
+    buffer = []
+    with open(tokens_file, 'wb') as ff:
+        with open(dataset, encoding='utf-8') as f:              
+            for token_id in tokenizer.encode_iterable(f):
+                buffer.append(token_id)
+                if len(buffer) >= buffer_size:
+                    np.array(buffer, dtype='uint16').tofile(ff)
+                    count += len(buffer)
+                    buffer.clear()
+
+        if buffer:  # flush remaining tokens
+            np.array(buffer, dtype=np.uint16).tofile(ff)
+            count += len(buffer)
+    print(f'Saved {count} token ids to: {tokens_file}')
+
+
+def read_tokens_binary(tokens_file) :
+    result = np.memmap(tokens_file, dtype='uint16')
+    return result
+
+
+if __name__ =='__main__':
+    pass
