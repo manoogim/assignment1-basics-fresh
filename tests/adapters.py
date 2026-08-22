@@ -9,8 +9,13 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+from tests.nn_norm import MyRmsNorm
 from tests.bpe_tokenizer import BpeTokenizer
 from tests.bpe_train import train_bpe
+from tests.nn_embedding import MyEmbedding
+from tests.nn_linear import MyModule
+from tests.nn_rope import RotaryPositionalEmbedding
+from tests.nn_swiglu import MySwiglu
 
 
 def run_linear(
@@ -31,8 +36,12 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
-
-    raise NotImplementedError
+    model = MyModule(d_in, d_out)
+    # inject test weights
+    with torch.no_grad():
+        model.weight.copy_(weights)
+    result = model.forward(in_features)
+    return result
 
 
 def run_embedding(
@@ -54,8 +63,11 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    raise NotImplementedError
-
+    model = MyEmbedding(vocab_size, d_model )
+    with torch.no_grad():
+        model.weight.copy_(weights)
+    result = model.forward(token_ids)
+    return result
 
 def run_swiglu(
     d_model: int,
@@ -86,7 +98,13 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    model = MySwiglu(d_model, d_ff)
+    with torch.no_grad():
+        model.w1.copy_(w1_weight)
+        model.w2.copy_(w2_weight)
+        model.w3.copy_(w3_weight)
+    result = model.forward(in_features)
+    return result
 
 
 def run_scaled_dot_product_attention(
@@ -203,7 +221,9 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    raise NotImplementedError
+    model = RotaryPositionalEmbedding(theta, d_k, max_seq_len)
+    result = model.forward(in_query_or_key, token_positions)
+    return result
 
 
 def run_transformer_block(
@@ -381,7 +401,12 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    model = MyRmsNorm(d_model, eps)
+    with torch.no_grad():
+        model.gamma.copy_(weights)
+
+    result = model.forward(in_features)
+    return result
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
