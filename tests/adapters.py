@@ -15,6 +15,7 @@ from tests.bpe_train import train_bpe
 from tests.nn_embedding import MyEmbedding
 from tests.nn_linear import MyModule
 from tests.nn_rope import RotaryPositionalEmbedding
+from tests.nn_utils import softmax
 from tests.nn_swiglu import MySwiglu
 
 
@@ -459,7 +460,8 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    result = softmax(in_features, dim)
+    return result
 
 
 def run_cross_entropy(

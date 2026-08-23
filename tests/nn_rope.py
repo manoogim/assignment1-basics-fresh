@@ -1,7 +1,8 @@
 import math
-from jaxtyping import Float
+from einops import einsum
+from jaxtyping import Float, Int
 import torch
-from torch import nn
+from torch import Tensor, nn
 """
 Deliverable: Implement a class RotaryPositionalEmbedding that applies RoPE to the input 
 tensor.
@@ -29,7 +30,7 @@ def my_rotation (alpha, device=None, dtype=None):
 def precompute_rope_blocks(theta_const: float, d_k: int, max_seq_len: int, device=None, dtype=None):
     half = d_k // 2
     frequencies = [theta_const ** (-2 * k / d_k) for k in range(d_k //2)]
-    ropes = torch.empty(max_seq_len, d_k, 2, 2, device = device, dtype = dtype)
+    ropes = torch.empty(max_seq_len, d_k//2, 2, 2, device = device, dtype = dtype)
     for pos in range (max_seq_len):
         alphas = [pos * freq for freq in frequencies]
         for k in range (half):
@@ -38,23 +39,34 @@ def precompute_rope_blocks(theta_const: float, d_k: int, max_seq_len: int, devic
     return ropes
 
 class RotaryPositionalEmbedding(nn.Module):
-    def __init__(self, theta_const: float, d_k: int, max_seq_len: int, device=None):
+    def __init__(self, theta_const: float, d_k: int, max_seq_len: int, device=None, dtype=None):
         super().__init__()
-        self.d = d_k
-        self.theta = theta_const
-        self.max_seq_len = max_seq_len
-        rope_blocks = precompute_rope_blocks(theta_const,d_k, max_seq_len, device)
+        rope_blocks = precompute_rope_blocks(theta_const,d_k, max_seq_len, device, dtype)
         self.register_buffer('rope_cache', rope_blocks, persistent = False)
         pass
 
-    def forward(self, x: Float[torch.Tensor, '... seq_len d_k'], token_positions: torch.Tensor) -> torch.Tensor:
+    def forward(self,  x: Float[Tensor, " ... sequence_length d_k"], token_positions: Int[Tensor, " ... sequence_length"]) -> torch.Tensor: 
+        *batch, seq_len, d_k = x.shape
+        half = d_k // 2
+
+        x_pairs = x.reshape(*batch, seq_len, half, 2)          # (..., seq_len, half, 2)
+        # batchness of rope_blocks comes from the token_positions
+        rope_blocks = self.rope_cache[token_positions]          # type: ignore # (..., seq_len, half, 2, 2)
+
+        rotated = einsum (rope_blocks, x_pairs,'... heads pairs i j, ... heads pairs j -> ... heads pairs i')
+        reshaped = rotated.reshape(*batch, seq_len, d_k)
+        return reshaped
+
+
+    def forward_serial(self, x: Float[torch.Tensor, '... seq_len d_k'], token_positions: torch.Tensor) -> torch.Tensor:
         """
         returns Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input
         """
-        seq_len = x.shape[-2]
+
         half = x.shape[-1] // 2
-        for pos in range(0, seq_len):
+        for pos in token_positions:
             for k in range(0, half):
+                # slicing to get the last two
                 pair = x[..., pos, 2*k : 2*k+2]
                 rope_block = self.rope_cache[pos,k] # type: ignore
                 # need to transpose b/c we implemented rope matrix as defined in the papers (so it expected column-vectors not row-vectors)

@@ -46,8 +46,8 @@ class MyModule(nn.Module):
         nn.init.trunc_normal_(w, 0, std_dev, -3 * std_dev, 3 * std_dev)
         self.weight = nn.Parameter(w)
 
-def forward(self, x: torch.Tensor):
-    assert x.shape[-1] == self.in_features, f"expected last dim {self.in_features}, got {x.shape[-1]}"
-    y = einsum(x, self.weight, '... in, out in -> ... out')
-    assert y.shape[-1] == self.out_features
-    return y
+    def forward(self, x: torch.Tensor):
+        assert x.shape[-1] == self.in_features, f"expected last dim {self.in_features}, got {x.shape[-1]}"
+        y = einsum(x, self.weight, '... in, out in -> ... out')
+        assert y.shape[-1] == self.out_features
+        return y
