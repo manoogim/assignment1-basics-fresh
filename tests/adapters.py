@@ -9,13 +9,15 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+from tests.nn_block import MyTransformerBlock
+from tests.nn_mhsa import MultiHeadSelfAttention, MultiheadSelfattentionRoped
 from tests.nn_norm import MyRmsNorm
 from tests.bpe_tokenizer import BpeTokenizer
 from tests.bpe_train import train_bpe
 from tests.nn_embedding import MyEmbedding
 from tests.nn_linear import MyModule
 from tests.nn_rope import RotaryPositionalEmbedding
-from tests.nn_utils import softmax
+from tests.nn_utils import softmax, scaled_dot_product_attention
 from tests.nn_swiglu import MySwiglu
 
 
@@ -126,7 +128,8 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    result = scaled_dot_product_attention(Q, K, V, mask)
+    return result
 
 
 def run_multihead_self_attention(
@@ -160,7 +163,14 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    model = MultiHeadSelfAttention(d_model, num_heads)
+    with torch.no_grad():
+        model.q.weight.copy_(q_proj_weight)
+        model.k.weight.copy_(k_proj_weight)
+        model.v.weight.copy_(v_proj_weight)
+        model.o_proj.weight.copy_(o_proj_weight)
+    result = model.forward(in_features)
+    return result
 
 
 def run_multihead_self_attention_with_rope(
@@ -200,7 +210,17 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    #  def __init__(self, d_model, num_heads, theta = 10_000, max_seq_len=128, device=None, dtype=None):
+    model = MultiheadSelfattentionRoped(d_model, num_heads, theta, max_seq_len)
+    with torch.no_grad():
+        model.q.weight.copy_(q_proj_weight)
+        model.k.weight.copy_(k_proj_weight)
+        model.v.weight.copy_(v_proj_weight)
+        model.o_proj.weight.copy_(o_proj_weight)
+
+    result = model.forward(in_features, token_positions)
+
+    return result
 
 
 def run_rope(
@@ -297,7 +317,20 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    model = MyTransformerBlock(d_model, num_heads, d_ff, 2048)
+    with torch.no_grad():
+        model.mha.q.weight.copy_(weights['attn.q_proj.weight'])
+        model.mha.k.weight.copy_(weights['attn.k_proj.weight'])
+        model.mha.v.weight.copy_(weights['attn.v_proj.weight'])
+        model.mha.o_proj.weight.copy_(weights['attn.output_proj.weight'])
+        model.rms_norm1.gamma.copy_(weights['ln1.weight'])
+
+        model.ff_block.w1.copy_(weights['ffn.w1.weight'])
+        model.ff_block.w2.copy_(weights['ffn.w2.weight'])
+        model.ff_block.w3.copy_(weights['ffn.w3.weight'])
+        model.rms_norm2.gamma.copy_(weights['ln2.weight'])
+    result = model.forward(in_features)
+    return result
 
 
 def run_transformer_lm(
