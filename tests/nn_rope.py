@@ -45,19 +45,26 @@ class RotaryPositionalEmbedding(nn.Module):
         self.register_buffer('rope_cache', rope_blocks, persistent = False)
         pass
 
-    def forward(self,  x: Float[Tensor, " ... sequence_length d_k"], token_positions: Int[Tensor, " ... sequence_length"]) -> torch.Tensor: 
+    def forward(self,  x: Float[Tensor, " ... sequence_length d_k"], token_positions_in: Int[Tensor, " ... sequence_length"]) -> torch.Tensor: 
         *batch, seq_len, d_k = x.shape
+        token_positions = token_positions_in if token_positions_in is not None else  torch.arange(seq_len, device = x.device)
         half = d_k // 2
 
         x_pairs = x.reshape(*batch, seq_len, half, 2)          # (..., seq_len, half, 2)
         # batchness of rope_blocks comes from the token_positions
+        print(f'rope cache: {self.rope_cache.shape}, positions: {token_positions.shape}')
         rope_blocks = self.rope_cache[token_positions]          # type: ignore # (..., seq_len, half, 2, 2)
-
+        print(f'rope_blocks: {rope_blocks.shape}, x_pairs: {x_pairs.shape}')
+        
         rotated = einsum (rope_blocks, x_pairs,'... heads pairs i j, ... heads pairs j -> ... heads pairs i')
         reshaped = rotated.reshape(*batch, seq_len, d_k)
         return reshaped
 
-
+    def _token_positions(self, x):
+        seq_len = x.shape[-2]
+        positions = torch.arange(seq_len, device = x.device)
+        return positions
+    
     def forward_serial(self, x: Float[torch.Tensor, '... seq_len d_k'], token_positions: torch.Tensor) -> torch.Tensor:
         """
         returns Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input
