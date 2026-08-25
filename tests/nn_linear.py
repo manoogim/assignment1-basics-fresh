@@ -24,7 +24,7 @@ import torch
 from torch import nn
 
 
-class MyModule(nn.Module):
+class MyLinear(nn.Module):
     """
     Given the weights of a Linear layer, compute the transformation of a batched input.
 
