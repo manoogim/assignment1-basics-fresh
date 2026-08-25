@@ -20,8 +20,7 @@ class MyTransformerBlock(nn.Module):
         super().__init__()
         self.rms_norm1 = MyRmsNorm(d_model, eps, device, dtype)
         # self.mha = MultiHeadSelfAttention(d_model, num_heads, device, dtype)
-        #  def __init__(self, d_model, num_heads, theta = 10_000, max_seq_len=128, device=None, dtype=None):
-        self.mha = MultiheadSelfattentionRoped(d_model, num_heads, 10_000.0, 256, device, dtype)
+        self.mha = MultiheadSelfattentionRoped(d_model, num_heads, theta, max_seq_len, device, dtype)
 
         self.rms_norm2 = MyRmsNorm(d_model, eps, device, dtype)
         self.ff_block = MySwiglu(d_model, d_ff, device, dtype)

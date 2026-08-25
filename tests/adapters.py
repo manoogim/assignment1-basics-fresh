@@ -15,8 +15,9 @@ from tests.nn_norm import MyRmsNorm
 from tests.bpe_tokenizer import BpeTokenizer
 from tests.bpe_train import train_bpe
 from tests.nn_embedding import MyEmbedding
-from tests.nn_linear import MyModule
+from tests.nn_linear import MyLinear
 from tests.nn_rope import RotaryPositionalEmbedding
+from tests.nn_transformer import MyTransformer
 from tests.nn_utils import softmax, scaled_dot_product_attention
 from tests.nn_swiglu import MySwiglu
 
@@ -39,7 +40,7 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
-    model = MyModule(d_in, d_out)
+    model = MyLinear(d_in, d_out)
     # inject test weights
     with torch.no_grad():
         model.weight.copy_(weights)
@@ -317,7 +318,7 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    model = MyTransformerBlock(d_model, num_heads, d_ff, 2048)
+    model = MyTransformerBlock(d_model, num_heads, d_ff, max_seq_len=max_seq_len, theta=theta)
     with torch.no_grad():
         model.mha.q.weight.copy_(weights['attn.q_proj.weight'])
         model.mha.k.weight.copy_(weights['attn.k_proj.weight'])
@@ -412,7 +413,43 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    model = MyTransformer(vocab_size=vocab_size, num_layers=num_layers, max_context=context_length,d_model=d_model,
+                          num_heads=num_heads, d_ff=d_ff, theta=rope_theta, device=None, dtype=None )
+
+    
+    with torch.no_grad():
+        model.input_embedding.weight.copy_(weights['token_embeddings.weight'])
+        model.norm.gamma.copy_(weights['ln_final.weight'])
+        model.lm_head.weight.copy_(weights['lm_head.weight'])
+        for layer in [0,1,2]:
+            q = weights[ f'layers.{layer}.attn.q_proj.weight']
+            k = weights[ f'layers.{layer}.attn.k_proj.weight']
+            v = weights[ f'layers.{layer}.attn.v_proj.weight']
+            o = weights[ f'layers.{layer}.attn.output_proj.weight']
+
+            w1 = weights[ f'layers.{layer}.ffn.w1.weight']
+            w2 = weights[ f'layers.{layer}.ffn.w2.weight']
+            w3 = weights[ f'layers.{layer}.ffn.w3.weight']
+
+            ln1 = weights[f'layers.{layer}.ln1.weight']
+            ln2 = weights[f'layers.{layer}.ln2.weight']
+
+            block: MyTransformerBlock = model.blocks._modules[f'{layer}']  # type: ignore
+            block.mha.q.weight.copy_(q)
+            block.mha.k.weight.copy_(k)
+            block.mha.v.weight.copy_(v)
+            block.mha.o_proj.weight.copy_(o)
+
+            block.rms_norm1.gamma.copy_(ln1)
+            block.rms_norm2.gamma.copy_(ln2)
+
+            block.ff_block.w1.copy_(w1)
+            block.ff_block.w2.copy_(w2)
+            block.ff_block.w3.copy_(w3)
+
+
+    result = model.forward(in_indices)
+    return result
 
 
 def run_rmsnorm(
