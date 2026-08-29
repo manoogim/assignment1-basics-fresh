@@ -9,6 +9,7 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+from tests.nn_adamw import MyAdamW
 from tests.nn_block import MyTransformerBlock
 from tests.nn_mhsa import MultiHeadSelfAttention, MultiheadSelfattentionRoped
 from tests.nn_norm import MyRmsNorm
@@ -18,7 +19,7 @@ from tests.nn_embedding import MyEmbedding
 from tests.nn_linear import MyLinear
 from tests.nn_rope import RotaryPositionalEmbedding
 from tests.nn_transformer import MyTransformer
-from tests.nn_utils import softmax, scaled_dot_product_attention
+from tests.nn_utils import cross_entropy, cross_entropy_loss_slow, get_lr_cosine_sched, softmax, scaled_dot_product_attention
 from tests.nn_swiglu import MySwiglu
 
 
@@ -549,7 +550,8 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    result = cross_entropy(inputs, targets)
+    return result
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
@@ -568,7 +570,8 @@ def get_adamw_cls() -> Any:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    cls = MyAdamW
+    return cls
 
 
 def run_get_lr_cosine_schedule(
@@ -596,7 +599,8 @@ def run_get_lr_cosine_schedule(
     Returns:
         Learning rate at the given iteration under the specified schedule.
     """
-    raise NotImplementedError
+    result = get_lr_cosine_sched(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
+    return result
 
 
 def run_save_checkpoint(

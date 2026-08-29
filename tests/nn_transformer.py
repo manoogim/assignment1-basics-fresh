@@ -26,7 +26,7 @@ class MyTransformer(nn.Module):
 
         self.norm = MyRmsNorm(d_model, eps, device, dtype)
 
-        self.lm_head = MyLinear(d_model, vocab_size)
+        self.lm_head = MyLinear(d_model, vocab_size, device, dtype)
 
     def forward(self, in_tokens):
         x = self.input_embedding(in_tokens)
