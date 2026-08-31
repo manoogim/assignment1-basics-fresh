@@ -121,4 +121,7 @@ def read_tokens_binary(tokens_file) :
 
 
 if __name__ =='__main__':
-    pass
+    vocab_folder = r"C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\out\tinystories_GPT4"
+    tokens_file = os.path.join(vocab_folder,'tokens_valid.bin')
+    result = read_tokens_binary(tokens_file)
+    print(result[:20])

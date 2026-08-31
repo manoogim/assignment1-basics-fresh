@@ -11,6 +11,7 @@ from torch import Tensor
 
 from tests.nn_adamw import MyAdamW
 from tests.nn_block import MyTransformerBlock
+from tests.nn_loader import get_batch, load_checkpoint, save_checkpoint
 from tests.nn_mhsa import MultiHeadSelfAttention, MultiheadSelfattentionRoped
 from tests.nn_norm import MyRmsNorm
 from tests.bpe_tokenizer import BpeTokenizer
@@ -19,7 +20,7 @@ from tests.nn_embedding import MyEmbedding
 from tests.nn_linear import MyLinear
 from tests.nn_rope import RotaryPositionalEmbedding
 from tests.nn_transformer import MyTransformer
-from tests.nn_utils import cross_entropy, cross_entropy_loss_slow, get_lr_cosine_sched, softmax, scaled_dot_product_attention
+from tests.nn_utils import clip_gradient, cross_entropy, cross_entropy_loss_slow, get_lr_cosine_sched, softmax, scaled_dot_product_attention
 from tests.nn_swiglu import MySwiglu
 
 
@@ -515,7 +516,8 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    raise NotImplementedError
+    result = get_batch(dataset, batch_size, context_length)
+    return result
 
 
 def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, " ..."]:
@@ -563,7 +565,8 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
-    raise NotImplementedError
+    result = clip_gradient(parameters, max_l2_norm)
+    return result
 
 
 def get_adamw_cls() -> Any:
@@ -619,7 +622,7 @@ def run_save_checkpoint(
             we've completed.
         out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    raise NotImplementedError
+    save_checkpoint(model, optimizer, iteration, out)
 
 
 def run_load_checkpoint(
@@ -640,7 +643,8 @@ def run_load_checkpoint(
     Returns:
         int: the previously-serialized number of iterations.
     """
-    raise NotImplementedError
+    iteration = load_checkpoint(src, model, optimizer)
+    return iteration
 
 
 def get_tokenizer(

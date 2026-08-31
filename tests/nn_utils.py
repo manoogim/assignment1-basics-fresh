@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import math
 
 from einops import einsum
@@ -112,3 +113,16 @@ def get_lr_cosine_sched(t, alphamax, alphamin, tw, tc):
         result = alphamin
     print (result)
     return result
+
+def clip_gradient(params: Iterable[torch.nn.Parameter], maxgrad, eps = 1e-6):
+    params2 = [p for p in params if p.grad is not None]
+    norms = [p.grad.norm(2) for p in params2]
+    norms_tensor = torch.stack(norms)
+    l2 = torch.norm(norms_tensor, 2)
+    clip_factor = maxgrad / (l2 + eps)
+    if clip_factor < 1:
+        for p in params2:
+            p.grad.mul_(clip_factor)
+
+
+    pass
