@@ -1,0 +1,43 @@
+model:
+  vocab_size: 50257
+  seq_len: 256          # drastically reduces compute + memory
+  d_model: 256          # hidden size (tiny)
+  d_ff: 1024            # 4× d_model (standard GPT2 ratio)
+  num_layers: 4         # fewer transformer blocks
+  num_heads: 4          # must divide d_model cleanly
+
+optimizer:
+  type: "adamw"
+  lr: 3.e-4
+  weight_decay: 0.1
+  betas: [0.9, 0.95]
+  eps: 1.e-8
+
+train:
+  batch_size: 8         # 8 > 1
+  datatype: float32     # CPU-friendly
+  max_norm: 1.0
+  grad_eps: 1.0e-6
+
+scheduler:
+  type: "cosine"
+  tw: 2000
+  tc: 20000             # much shorter cosine cycle for tiny model
+  minrate: 1.0e-5
+  maxrate: 3.0e-4
+
+data:
+  train_bin: 'C:/Users/Melissa/stanford/cs336/assignment1-basics-fresh/out/tinystories_GPT4/tokens_train.bin'
+  val_bin:   'C:/Users/Melissa/stanford/cs336/assignment1-basics-fresh/out/tinystories_GPT4/tokens_val.bin'
+  dtype: 'uint16'
+
+run:
+  device: 'auto'
+  seed: 17
+  name: 'gpt2-tiny'
+  output_dir: 'runs/gpt2-tiny-tinystories'
+  save_every_steps: 100
+  keep_last_ckpts: 10
+  checkpoint_pattern: 'ckpt_{slot}.pt'
+  resume_from: 'ckpt_1.pt'
+  
