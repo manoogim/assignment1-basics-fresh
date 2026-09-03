@@ -3,13 +3,10 @@ import random
 from typing import Tuple
 import typing
 
-from einops import rearrange
+import numpy
 import torch
-from jaxtyping import Float, Int
+from jaxtyping import Int
 from torch import nn
-
-from tests.bpe_tokenizer import read_tokens_binary
-
 
 
 def get_batch(x, batch_size, ctx_len, device=None) -> Tuple[Int[torch.Tensor, 'batch_size ctx_len'], Int[torch.Tensor, 'batch_size ctx_len']]:
@@ -25,34 +22,25 @@ def get_batch(x, batch_size, ctx_len, device=None) -> Tuple[Int[torch.Tensor, 'b
         ids = x[start : start + ctx_len + 1]
         inputs.append(ids[:-1])
         outputs.append(ids[1:])
-    result = torch.tensor(inputs, device=device), torch.tensor(outputs, device=device)
+    # converting type from uint16 to int32 for lookups is mandatory, otherwise torch will throw an error when trying to index with uint16
+    #  wraping [] with numpy.array is recommended to avoid torch warning about creating tensor from list of numpy arrays
+    result = torch.tensor(numpy.array(inputs), device=device, dtype=torch.int32), torch.tensor(numpy.array(outputs), device=device, dtype=torch.int32)
     return result
 
-def sample_batch():
-    x = [12, 7, 7, 99, 42, 7, 13, 88, 5, 5, 5, 90]
-    b = 2
-    ctx_len = 4
-    result = get_batch (x, b, ctx_len)
-    print (result)
-
-def vocab_batch():
-    vocab_folder = r"C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\out\tinystories_GPT4"
-    tokens_file = os.path.join(vocab_folder,'tokens_valid.bin')
-    x = read_tokens_binary(tokens_file)
-    result = get_batch(x, 32, 7)
-    print(result)
-
-def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteration:int, out: str | os.PathLike | typing.BinaryIO | typing.IO[bytes]):
+def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteration:int, out_path: str ):
     obj = {}
     obj['iteration'] = iteration
     obj['model_state'] = model.state_dict()
     obj['adamw_state'] = optimizer.state_dict()
-    torch.save(obj, out)
-    print(f'Saved state at iteration: {iteration} to: {out}')
+    # save to tmp and atomically rename 
+    tmp_path = out_path + '.tmp'
+    torch.save(obj, tmp_path)
+    os.replace(tmp_path, out_path)
 
 
-def load_checkpoint(src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes], model: nn.Module, optimizer: torch.optim.Optimizer) -> int:
-    obj = torch.load(src)
+
+def load_checkpoint( model: nn.Module, optimizer: torch.optim.Optimizer, src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes], device) -> int:
+    obj = torch.load(src, map_location=device)
     model.load_state_dict(obj['model_state'])
     optimizer.load_state_dict(obj['adamw_state'])
     iteration = obj['iteration']

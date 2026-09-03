@@ -1,10 +1,12 @@
 from collections.abc import Iterable
 import math
 
-from einops import einsum
+from einops import einsum, rearrange
 import torch
 from torch import Tensor
 from jaxtyping import Float, Int
+
+from tests.nn_loader import get_batch
 
 def softmax(x: torch.Tensor, dim=-1):
      # using property of exp(a) / exp(b), that we can subtract same value from a and b 
@@ -22,12 +24,13 @@ def scaled_dot_product_attention(
     
     dk = Q.shape[-1]
     scores = einsum(Q, K, '... Q dk, ... K dk -> ... Q K') / math.sqrt(dk)
-    mask = maskin if maskin is not None else build_mask(scores.shape)
+    mask = maskin if maskin is not None else build_mask(scores.shape, device=scores.device)
     scores = scores.masked_fill(mask == 0, float("-inf"))
     attention_weights = softmax(scores, -1) 
     result = einsum(attention_weights, V, '... Q K, ... K dv -> ... Q dv')
     return result
 
+# alternative impl - not used
 def causal_mask(scores):
     """
     put -inf in upper triangle
@@ -38,8 +41,8 @@ def causal_mask(scores):
     return result
 
 
-def build_mask(dims):
-    ones =  torch.ones(dims)
+def build_mask(dims, device=None):
+    ones =  torch.ones(dims, device=device)
     mask = ones.tril(diagonal=0)
     return mask
 
@@ -105,13 +108,12 @@ def get_lr_cosine_sched(t, alphamax, alphamin, tw, tc):
         (Cosine annealing) If 𝑇𝑤 ≤ 𝑡 ≤ 𝑇𝑐, then lr = alphamin + 0.5 * cos( 1 + pi * (t - tw)/tc - tw)) * (alphamax - alphamin)
         (Post-annealing) If 𝑡 > 𝑇𝑐, then lr = alphamin
     """
-    if t < tw:
+    if t < tw:                      #number of warmup steps
         result = t * alphamax / tw
-    elif t <= tc:
+    elif t <= tc:                   # number of cosine annealing steps
         result = alphamin + 0.5 * (1 + math.cos( math.pi * ( t - tw) / (tc - tw))) * (alphamax - alphamin)
     else:
         result = alphamin
-    print (result)
     return result
 
 def clip_gradient(params: Iterable[torch.nn.Parameter], maxgrad, eps = 1e-6):
@@ -123,6 +125,34 @@ def clip_gradient(params: Iterable[torch.nn.Parameter], maxgrad, eps = 1e-6):
     if clip_factor < 1:
         for p in params2:
             p.grad.mul_(clip_factor)
+    return l2.item()
 
 
-    pass
+def resolve_device(requested: str) -> str:
+    if requested != 'auto':
+        return requested
+    if torch.cuda.is_available():
+        return 'cuda'
+    if torch.backends.mps.is_available():
+        return 'mps'
+    return 'cpu'
+
+def compute_loss(model, input_tokens, output_tokens):
+    logits = model(input_tokens)
+    logits = rearrange(logits, 'b c d -> (b c) d')
+    output_tokens = rearrange(output_tokens, 'b c -> (b c)')
+    result = cross_entropy(logits, output_tokens)
+    return result
+
+def calc_validation_loss(model, validation_tokens, eval_batch_size, seq_size, num_eval_batches=20, device=None):
+    model.eval()
+    try:
+        losses = []
+        with torch.no_grad():
+            for _ in range(num_eval_batches):
+                input_tokens, output_tokens = get_batch(validation_tokens, eval_batch_size, seq_size, device)
+                loss = compute_loss(model, input_tokens, output_tokens)
+                losses.append(loss.item())
+        return sum(losses) / len(losses)
+    finally:
+        model.train()

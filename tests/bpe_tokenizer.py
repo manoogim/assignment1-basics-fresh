@@ -115,8 +115,8 @@ def write_tokens_binary(dataset, tokenizer, tokens_file, buffer_size= 100_000):
     print(f'Saved {count} token ids to: {tokens_file}')
 
 
-def read_tokens_binary(tokens_file) :
-    result = np.memmap(tokens_file, dtype='uint16')
+def read_tokens_binary(tokens_file, dtype='uint16') :
+    result = np.memmap(tokens_file, dtype)
     return result
 
 

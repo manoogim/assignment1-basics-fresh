@@ -10,6 +10,12 @@ class MySwiglu(nn.Module):
         w1 = torch.empty((d_ff, d_model),device=device, dtype=dtype)
         w2 = torch.empty((d_model, d_ff),device=device, dtype=dtype)
         w3 = torch.empty((d_ff, d_model),device=device, dtype=dtype)
+
+        std_dev = (2.0 / (d_model + d_ff)) ** 0.5
+        nn.init.trunc_normal_(w1, 0, std_dev, -3*std_dev, 3*std_dev)
+        nn.init.trunc_normal_(w2, 0, std_dev, -3*std_dev, 3*std_dev)
+        nn.init.trunc_normal_(w3, 0, std_dev, -3*std_dev, 3*std_dev)
+
         self.w1 = nn.Parameter(w1)
         self.w2 = nn.Parameter(w2)
         self.w3 = nn.Parameter(w3)

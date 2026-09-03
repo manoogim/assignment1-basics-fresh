@@ -48,6 +48,6 @@ class MyLinear(nn.Module):
 
     def forward(self, x: torch.Tensor):
         assert x.shape[-1] == self.in_features, f"expected last dim {self.in_features}, got {x.shape[-1]}"
-        y = einsum(x, self.weight, '... in, out in -> ... out')
+        y = einsum(x, self.weight, '... d_in, d_out d_in -> ... d_out')
         assert y.shape[-1] == self.out_features
         return y

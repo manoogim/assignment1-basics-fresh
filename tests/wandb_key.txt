@@ -1,0 +1,5 @@
+wandb url
+https://wandb.ai/manoogim-personal/gpt2-tiny/workspace
+
+API key also stored in C:\Users\Melissa\_netrc
+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

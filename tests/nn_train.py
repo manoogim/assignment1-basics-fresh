@@ -1,103 +1,107 @@
-from datetime import datetime
 import os
-
-from einops import rearrange
-import torch
-from torch import nn
-import yaml
 
 from tests.bpe_tokenizer import read_tokens_binary
 from tests.nn_adamw import MyAdamW
 from tests.nn_loader import get_batch, load_checkpoint, save_checkpoint
 from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
-from tests.nn_utils import clip_gradient, cross_entropy, get_lr_cosine_sched, resolve_device
+from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss,  get_lr_cosine_sched
+from tests.nn_yaml import Config, load_yaml_config
 
 
-def build_model(cfg):
-    dd = cfg['model']
-    llm = MyTransformer(dd['vocab_size'], dd['num_layers'], dd['seq_len'], dd['d_model'], dd['num_heads'], dd['d_ff'], device=cfg['run']['device'])
+def build_model(config: Config):
+    dd = config.model
+    llm = MyTransformer(dd.vocab_size, dd.num_layers, dd.seq_len, dd.d_model, dd.num_heads, dd.d_ff, device=config.run.device)
     return llm
 
-def build_optimizer(params, cfg):
-    dd = cfg['optimizer']
-    optim = MyAdamW(params, dd['lr'], dd['weight_decay'], dd['betas'], dd['eps'])
+def build_optimizer(params, config: Config):
+    dd = config.optimizer
+    optim = MyAdamW(params, dd.lr, dd.weight_decay, dd.betas, dd.eps)
     return optim
 
-def read_tokens(cfg):
-    tokens_file = cfg['data']['train_bin']
-    dtype = cfg['data']['dtype']
-    x = read_tokens_binary(tokens_file, dtype)
-    return x
+def load_tokens(config: Config):
+    dtype = config.data.dtype
+    training_tokens = read_tokens_binary(config.data.train_bin, dtype)
+    validation_tokens = read_tokens_binary(config.data.val_bin, dtype)
+    return training_tokens, validation_tokens
 
-def get_tokens_batch(tokens_block, cfg):
-    input_tokens, output_tokens = get_batch(tokens_block, cfg['train']['batch_size'], cfg['model']['seq_len'], cfg['run']['device'])
+def get_tokens_batch(tokens_block, config: Config):
+    input_tokens, output_tokens = get_batch(tokens_block, config.train.batch_size, config.model.seq_len, config.run.device)
     return input_tokens, output_tokens
 
-def calc_learning_rate(iteration, config):
-    cfg = config['scheduler']
-    lr = get_lr_cosine_sched(iteration, cfg['maxrate'], cfg['minrate'], cfg['tw'], cfg['tc'])
+def calc_learning_rate(iteration, config: Config):
+    cfg = config.scheduler
+    lr = get_lr_cosine_sched(iteration, cfg.maxrate, cfg.minrate, cfg.tw, cfg.tc)
     return lr
 
-def save_checkpoint_cyclic(model, optimizer, iteration, cfg):
-    folder = cfg['run']['output_dir']
+def save_checkpoint_cyclic(model, optimizer, iteration, config: Config):
+    folder = config.run.output_dir
     os.makedirs(folder, exist_ok=True)
 
-    save_every_steps = cfg['run']['save_every_steps']
-    keep_last = cfg['run']['keep_last_ckpts']
+    save_every_steps =  config.run.save_every_steps
+    keep_last = config.run.keep_last_ckpts
     slot = iteration // save_every_steps % keep_last   # or a running counter
     out_path = os.path.join(folder, f'ckpt_{slot}.pt')
     save_checkpoint(model, optimizer, iteration, out_path)
     return out_path
 
-def resume_checkpoint(model, optimizer, cfg):
-    cpt = cfg['run']['resume_from']
+def resume_checkpoint(model, optimizer, config: Config):
+    cpt = config.run.resume_from
     if cpt is not None:
-        src = os.path.join(cfg['run']['output_dir'], cpt)
-        step = load_checkpoint(model, optimizer, src) + 1
+        src = os.path.join(config.run.output_dir, cpt)
+        step = load_checkpoint(model, optimizer, src, config.run.device) + 1
     else:
         step = -1
     return step
 
     
 def train(cfg_path):
-    with open(cfg_path) as f:
-        cfg = yaml.safe_load(f)
-        cfg['run']['device']  = resolve_device(cfg['run']['device'])
+    raw_cfg, config = load_yaml_config(cfg_path)
 
-    tokens_block = read_tokens(cfg)
+    training_tokens, validation_tokens = load_tokens(config)
 
-    llm = build_model(cfg)
+    llm = build_model(config)
     llm.train()
 
-    optim = build_optimizer(llm.parameters(), cfg)
+    optim = build_optimizer(llm.parameters(), config)
 
-    num_steps = cfg['scheduler']['tw'] + cfg['scheduler']['tc']
+    num_steps = config.scheduler.tw + config.scheduler.tc
+    tracker = StatusTracker(num_steps, llm, raw_cfg, config)
 
-    tracker = StatusTracker(num_steps, print_every=cfg['run']['save_every_steps'], avg_window=100)
-
-    start_step = resume_checkpoint(llm, optim, cfg) if cfg['run']['resume_from'] is not None else 0
+    start_step = resume_checkpoint(llm, optim, config) if config.run.resume_from is not None else 0
     for step in range(start_step, num_steps):
 
-        input_tokens, output_tokens = get_tokens_batch(tokens_block, cfg)
+        input_tokens, output_tokens = get_tokens_batch(training_tokens, config)
 
         optim.zero_grad()
-        logits = llm(input_tokens)
-        logits = rearrange(logits,'BB CC DD -> (BB CC) DD')
-        output_tokens = rearrange(output_tokens, 'BB CC -> (BB CC)')
-        loss = cross_entropy(logits, output_tokens) # TODO rearange dims
+        loss = compute_loss(llm, input_tokens, output_tokens)
 
-        # back prpagation
+        # back propagation
         loss.backward()
-        grad_norm = clip_gradient(llm.parameters(), cfg['train']['max_norm'], cfg['train']['grad_eps'])
-        lr = calc_learning_rate(step + 1, cfg)
+        grad_norm = clip_gradient(llm.parameters(), config.train.max_norm, config.train.grad_eps)
+        lr = calc_learning_rate(step + 1, config)
         optim.set_lr(lr)
         optim.step()
 
-        save_now = (step > 0 and step % cfg['run']['save_every_steps'] == 0) or step == num_steps
+        log_now = (step > 0 and step % config.run.log_every_steps == 0) or (step == num_steps - 1)
+        if log_now:
+            tracker.update(step, loss.item(), lr, grad_norm, input_tokens.numel() )
+
+        save_now = (step > 0 and step % config.run.save_every_steps == 0) or (step == num_steps - 1)
         if save_now:
-            out_path = save_checkpoint_cyclic(llm, optim, step, cfg)
-            tracker.update(step, loss.item(), lr, grad_norm, input_tokens.numel(), out_path)
+            out_path = save_checkpoint_cyclic(llm, optim, step, config)
+            tracker.update_checkpoint(step, out_path)
+
+        eval_now = ( step > 0 and step % config.eval.eval_every_steps == 0) or (step == num_steps - 1)
+        if eval_now:
+            val_loss = calc_validation_loss(llm, validation_tokens, 
+                                            config.eval.batch_size, 
+                                            config.model.seq_len, 
+                                            config.eval.num_batches, 
+                                            config.run.device)
+            tracker.update_validation(step, val_loss)
+
+
 
     
 

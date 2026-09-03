@@ -21,23 +21,30 @@ train:
 
 scheduler:
   type: "cosine"
-  tw: 2000
-  tc: 20000             # much shorter cosine cycle for tiny model
+  tw: 2000              # warmup steps
+  tc: 5000              # steps with cosine sched, much shorter cosine cycle for tiny model
   minrate: 1.0e-5
   maxrate: 3.0e-4
 
 data:
   train_bin: 'C:/Users/Melissa/stanford/cs336/assignment1-basics-fresh/out/tinystories_GPT4/tokens_train.bin'
-  val_bin:   'C:/Users/Melissa/stanford/cs336/assignment1-basics-fresh/out/tinystories_GPT4/tokens_val.bin'
-  dtype: 'uint16'
+  val_bin:   'C:/Users/Melissa/stanford/cs336/assignment1-basics-fresh/out/tinystories_GPT4/tokens_valid.bin'
+  dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
-  device: 'auto'
+  device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 17
-  name: 'gpt2-tiny'
+  name: 'gpt2-tiny'     # name of the run, used for logging and saving checkpoints
   output_dir: 'runs/gpt2-tiny-tinystories'
-  save_every_steps: 100
-  keep_last_ckpts: 10
-  checkpoint_pattern: 'ckpt_{slot}.pt'
-  resume_from: 'ckpt_1.pt'
-  
+  save_every_steps: 200  # how often to save checkpoints and print stats
+  log_every_steps: 100   # how often to log stats
+  keep_last_ckpts: 10   # will keep this many files on disk
+  checkpoint_pattern: 'ckpt_{slot}.pt' 
+  resume_from: null     # do not resume from any checkpt but start frpom 0
+  avg_window: 100       # for computing running avg loss 
+  wandb_enabled: false  # whether or not to log to wandb
+
+eval:
+  num_batches: 10      # how many batches to use for validation loss
+  batch_size: 16       # batch size for validation
+  eval_every_steps: 100  # how often to evaluate validation loss
