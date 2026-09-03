@@ -156,3 +156,7 @@ def calc_validation_loss(model, validation_tokens, eval_batch_size, seq_size, nu
         return sum(losses) / len(losses)
     finally:
         model.train()
+
+def silu(x: Float[Tensor, "d_model d_ff"]) -> Float[Tensor, "d_model d_ff"]:
+    result = x * torch.sigmoid(x)
+    return result
