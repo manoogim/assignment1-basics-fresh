@@ -64,6 +64,7 @@ class StatusTracker:
                 "throughput": throughput,
                 "rss": self._rss(),
                 "step": step,
+                "wallclock_secs": elapsed,
             })
 
         
