@@ -24,7 +24,7 @@ class MyEmbedding(nn.Module):
         Lookup the embedding vectors for the given token_ids (which are in reality idx of rows)
         """
         # Check if inputs are valid
-        assert torch.all(token_ids) < self.vocab_size , f'Some tokens are out of vocab range {self.vocab_size}'
-        assert torch.all(token_ids) >= 0, 'Some tokens are negative'
+        assert torch.all(token_ids < self.vocab_size), f'Some tokens are out of vocab range {self.vocab_size}'
+        assert torch.all(token_ids >= 0), 'Some tokens are negative'
         
         return self.weight[token_ids]

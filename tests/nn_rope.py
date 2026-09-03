@@ -52,9 +52,9 @@ class RotaryPositionalEmbedding(nn.Module):
 
         x_pairs = x.reshape(*batch, seq_len, half, 2)          # (..., seq_len, half, 2)
         # batchness of rope_blocks comes from the token_positions
-        print(f'rope cache: {self.rope_cache.shape}, positions: {token_positions.shape}')
+        # print(f'rope cache: {self.rope_cache.shape}, positions: {token_positions.shape}')
         rope_blocks = self.rope_cache[token_positions]          # type: ignore # (..., seq_len, half, 2, 2)
-        print(f'rope_blocks: {rope_blocks.shape}, x_pairs: {x_pairs.shape}')
+        # print(f'rope_blocks: {rope_blocks.shape}, x_pairs: {x_pairs.shape}')
         
         rotated = einsum (rope_blocks, x_pairs,'... heads pairs i j, ... heads pairs j -> ... heads pairs i')
         reshaped = rotated.reshape(*batch, seq_len, d_k)
@@ -64,7 +64,8 @@ class RotaryPositionalEmbedding(nn.Module):
         seq_len = x.shape[-2]
         positions = torch.arange(seq_len, device = x.device)
         return positions
-    
+
+    # not used - but could be used to implement a serial version of RoPE, in which case do not overwrite the input tensor X
     def forward_serial(self, x: Float[torch.Tensor, '... seq_len d_k'], token_positions: torch.Tensor) -> torch.Tensor:
         """
         returns Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input
@@ -78,6 +79,7 @@ class RotaryPositionalEmbedding(nn.Module):
                 rope_block = self.rope_cache[pos,k] # type: ignore
                 # need to transpose b/c we implemented rope matrix as defined in the papers (so it expected column-vectors not row-vectors)
                 x[..., pos, 2*k : 2*k + 2] = pair @ rope_block.T
+        # code overwrites the input tensor above which can messup autograd if put in use in a nn.Module
         return x
 
 if __name__ == "__main__":
