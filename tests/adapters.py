@@ -20,7 +20,7 @@ from tests.nn_embedding import MyEmbedding
 from tests.nn_linear import MyLinear
 from tests.nn_rope import RotaryPositionalEmbedding
 from tests.nn_transformer import MyTransformer
-from tests.nn_utils import clip_gradient, cross_entropy, cross_entropy_loss_slow, get_lr_cosine_sched, softmax, scaled_dot_product_attention
+from tests.nn_utils import clip_gradient, cross_entropy, cross_entropy_loss_slow, get_lr_cosine_sched, silu, softmax, scaled_dot_product_attention
 from tests.nn_swiglu import MySwiglu
 
 
@@ -493,7 +493,8 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
+    result = silu(in_features)
+    return result
 
 
 def run_get_batch(
