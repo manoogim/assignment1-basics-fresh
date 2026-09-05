@@ -1,6 +1,6 @@
 model:
   vocab_size: 50257
-  seq_len: 256          # drastically reduces compute + memory
+  seq_len: 256          # size for precomuted RoPE cache, and max context length for training
   d_model: 256          # hidden size (tiny)
   d_ff: 1024            # 4× d_model (standard GPT2 ratio)
   num_layers: 4         # fewer transformer blocks
@@ -37,7 +37,7 @@ run:
   name: 'gpt2-tiny'     # name of the run, used for logging and saving checkpoints
   output_dir: 'runs/gpt2-tiny-tinystories'
   save_every_steps: 200  # how often to save checkpoints and print stats
-  log_every_steps: 100   # how often to log stats
+  log_every_steps: 2   # how often to log stats
   keep_last_ckpts: 10   # will keep this many files on disk
   checkpoint_pattern: 'ckpt_{slot}.pt' 
   resume_from: null     # do not resume from any checkpt but start frpom 0
@@ -47,4 +47,13 @@ run:
 eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
-  eval_every_steps: 100  # how often to evaluate validation loss
+  eval_every_steps: 2  # how often to evaluate validation loss
+
+gen:
+    temp: 0.5
+    top_k: 10
+    max_tokens: 1000
+    prompt_path: 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\prompts\\tinystoryprompt.txt'
+    vocab_folder: 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\out\\tinystories_GPT4'
+    special_tokens: ['<|endoftext|>']
+    model_weights_path: 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\runs\\gpt2-tiny-tinystories\\ckpt_4.pt'

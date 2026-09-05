@@ -1,3 +1,4 @@
+import math
 import time
 import os
 import psutil
@@ -6,6 +7,12 @@ import wandb
 from tests.nn_transformer import MyTransformer
 from tests.nn_yaml import Config
 
+def safe_ppl(loss):
+    try:
+        return math.exp(loss)
+    except OverflowError:
+        return float('inf')
+    
 class StatusTracker:
     def __init__(self, total_steps, model: MyTransformer, raw_cfg, config: Config):
         self.total_steps = total_steps
@@ -34,6 +41,10 @@ class StatusTracker:
         avg_loss = sum(self.loss_history) / len(self.loss_history)
         min_loss = min(self.loss_history)
 
+        # Compute perplexity
+        perplexity = safe_ppl(loss)
+        avg_perplexity = safe_ppl(avg_loss)
+
         # Timing
         now = time.time()
         time_since_last_update = now - self.last_time
@@ -51,6 +62,7 @@ class StatusTracker:
         # Print periodic status
 
         print(f"[{step}] loss={loss:.4f} avg_loss({self.avg_window})={avg_loss:.4f} min_loss={min_loss:.4f}")
+        print(f"      ppl={perplexity:.2f} avg_ppl={avg_perplexity:.2f}")
         print(f"      lr={lr:.6f} grad_norm={grad_norm:.4f}")
         print(f"      throughput={throughput:.1f} tokens/sec")
         print(f"      elapsed={self._fmt(elapsed)} eta={self._fmt(eta_seconds)}")
@@ -59,6 +71,8 @@ class StatusTracker:
             wandb.log({
                 "loss": loss,
                 "avg_loss": avg_loss,
+                "perplexity": perplexity,
+                "avg_perplexity": avg_perplexity,
                 "lr": lr,
                 "grad_norm": grad_norm,
                 "throughput": throughput,
@@ -79,11 +93,14 @@ class StatusTracker:
             })
 
     def update_validation(self, step, val_loss):
-        print(f"[{step}] Validation loss: {val_loss:.4f}")
+        val_ppl = safe_ppl(val_loss)
+        print(f"[{step}] Validation loss: {val_loss:.4f}   ppl: {val_ppl:.2f}")
+        
         if self.wandb_enabled:
             wandb.log({
                 "step": step,
-                "validation_loss": val_loss
+                "validation_loss": val_loss,
+                "validation_perplexity": val_ppl
             })
 
     def _rss(self):

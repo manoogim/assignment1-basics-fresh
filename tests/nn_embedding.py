@@ -21,7 +21,7 @@ class MyEmbedding(nn.Module):
 
     def forward(self, token_ids: torch.Tensor):
         """
-        Lookup the embedding vectors for the given token_ids (which are in reality idx of rows)
+        Lookup the embedding vectors for the given token_ids (which are in reality idx of rows) shape: (batch_size, seq_len)
         """
         # Check if inputs are valid
         assert torch.all(token_ids < self.vocab_size), f'Some tokens are out of vocab range {self.vocab_size}'
