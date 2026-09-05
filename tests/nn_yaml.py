@@ -55,6 +55,15 @@ class EvalConfig(NamedTuple):
     batch_size: int
     eval_every_steps: int
 
+class GenConfig(NamedTuple):
+    temp: float
+    top_k: int
+    max_tokens: int
+    prompt_path: str
+    vocab_folder: str
+    special_tokens: list[str]
+    model_weights_path: str
+
 class Config(NamedTuple):
     model: ModelConfig
     optimizer: OptimizerConfig
@@ -63,7 +72,8 @@ class Config(NamedTuple):
     data: DataConfig
     run: RunConfig
     eval: EvalConfig
-
+    gen: GenConfig
+    
 def load_yaml_config(cfg_path):
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
@@ -76,7 +86,8 @@ def load_yaml_config(cfg_path):
         scheduler=SchedulerConfig(**raw['scheduler']),
         data=DataConfig(**raw['data']),
         run=RunConfig(**raw['run']),
-        eval=EvalConfig(**raw['eval'])
+        eval=EvalConfig(**raw['eval']),
+        gen = GenConfig(**raw['gen'])
     )
 
 if __name__ == "__main__":

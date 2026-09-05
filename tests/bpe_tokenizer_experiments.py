@@ -2,9 +2,8 @@ import os
 import random
 import time
 
-import numpy as np
 
-from tests.bpe_tokenizer import from_pkl, read_tokens_binary, write_tokens_binary
+from tests.bpe_tokenizer import BpeTokenizer, write_tokens_binary
 
 def sample_docs(file_path, end_token="<|endoftext|>", num_items=10):
     buf = []
@@ -111,7 +110,7 @@ def owt_inputs():
 def report_comprehension():
     for subject, dataset_train, _, vocab_folder, special_token in [tinystories_inputs(), owt_inputs()]:
         print(f'Subject: {subject}')
-        tokenizer = from_pkl(vocab_folder, [special_token])
+        tokenizer = BpeTokenizer.from_files(vocab_folder, [special_token])
         ten_stories = sample_docs(dataset_train)
         ratios = [calc_ratio(doc, tokenizer) for doc in ten_stories ]
         my_max = max(ratios)
@@ -122,12 +121,12 @@ def report_comprehension():
 
 def serialize_tokens():
     for _, dataset_train, dataset_valid, vocab_folder, special_token in [tinystories_inputs(), owt_inputs()]: 
-        tokenizer = from_pkl(vocab_folder, [special_token])
+        tokenizer = BpeTokenizer.from_files(vocab_folder, [special_token])
         write_tokens_binary(dataset_train, tokenizer, os.path.join(vocab_folder,'tokens_train.bin'))
         write_tokens_binary(dataset_valid, tokenizer, os.path.join(vocab_folder,'tokens_valid.bin'))   
 # def serialize_tinystories_tokens ():
 #     _, dataset_train, dataset_valid, vocab_folder, special_token = tinystories_inputs()
-#     tokenizer = from_pkl(vocab_folder, [special_token])
+#     tokenizer = BpeTokenizer.from_files(vocab_folder, [special_token])
 #     write_tokens_binary(dataset_train, tokenizer, os.path.join(vocab_folder,'tokens_train.bin'))
 #     # write_tokens_binary(dataset_valid, tokenizer, os.path.join(vocab_folder,'tokens_valid.bin'))
 

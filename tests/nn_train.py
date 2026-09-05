@@ -8,12 +8,6 @@ from tests.nn_transformer import MyTransformer
 from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss,  get_lr_cosine_sched
 from tests.nn_yaml import Config, load_yaml_config
 
-
-def build_model(config: Config):
-    dd = config.model
-    llm = MyTransformer(dd.vocab_size, dd.num_layers, dd.seq_len, dd.d_model, dd.num_heads, dd.d_ff, device=config.run.device)
-    return llm
-
 def build_optimizer(params, config: Config):
     dd = config.optimizer
     optim = MyAdamW(params, dd.lr, dd.weight_decay, dd.betas, dd.eps)
@@ -24,10 +18,6 @@ def load_tokens(config: Config):
     training_tokens = read_tokens_binary(config.data.train_bin, dtype)
     validation_tokens = read_tokens_binary(config.data.val_bin, dtype)
     return training_tokens, validation_tokens
-
-def get_tokens_batch(tokens_block, config: Config):
-    input_tokens, output_tokens = get_batch(tokens_block, config.train.batch_size, config.model.seq_len, config.run.device)
-    return input_tokens, output_tokens
 
 def calc_learning_rate(iteration, config: Config):
     cfg = config.scheduler
@@ -60,7 +50,7 @@ def train(cfg_path):
 
     training_tokens, validation_tokens = load_tokens(config)
 
-    llm = build_model(config)
+    llm = MyTransformer.from_config(config.model, config.run.device)
     llm.train()
 
     optim = build_optimizer(llm.parameters(), config)
@@ -69,9 +59,10 @@ def train(cfg_path):
     tracker = StatusTracker(num_steps, llm, raw_cfg, config)
 
     start_step = resume_checkpoint(llm, optim, config) if config.run.resume_from is not None else 0
+
     for step in range(start_step, num_steps):
 
-        input_tokens, output_tokens = get_tokens_batch(training_tokens, config)
+        input_tokens, output_tokens = get_batch(training_tokens, config.train.batch_size, config.model.seq_len, config.run.device)
 
         optim.zero_grad()
         loss = compute_loss(llm, input_tokens, output_tokens)

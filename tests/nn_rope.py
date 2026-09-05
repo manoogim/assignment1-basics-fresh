@@ -43,11 +43,15 @@ class RotaryPositionalEmbedding(nn.Module):
         super().__init__()
         rope_blocks = precompute_rope_blocks(theta_const,d_k, max_seq_len, device, dtype)
         self.register_buffer('rope_cache', rope_blocks, persistent = False)
-        pass
+        self.max_seq_len = max_seq_len
 
     def forward(self,  x: Float[Tensor, " ... sequence_length d_k"], token_positions_in: Int[Tensor, " ... sequence_length"]) -> torch.Tensor: 
         *batch, seq_len, d_k = x.shape
         token_positions = token_positions_in if token_positions_in is not None else  torch.arange(seq_len, device = x.device)
+        if token_positions.max() >= self.max_seq_len:
+            raise ValueError(
+            f"token_positions max ({token_positions.max().item()}) exceeds max_seq_len ({self.max_seq_len}) the RoPE cache was built for"
+        )
         half = d_k // 2
 
         x_pairs = x.reshape(*batch, seq_len, half, 2)          # (..., seq_len, half, 2)
