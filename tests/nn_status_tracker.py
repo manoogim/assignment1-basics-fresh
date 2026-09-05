@@ -15,6 +15,8 @@ def safe_ppl(loss):
     
 class StatusTracker:
     def __init__(self, total_steps, model: MyTransformer, raw_cfg, config: Config):
+        tokens_budget = config.train.batch_size * total_steps * config.model.seq_len
+        print(f"**** Total steps: {total_steps:,}, Total tokens budget: {tokens_budget:,} ***")
         self.total_steps = total_steps
         self.avg_window = config.run.avg_window
         self.log_every_steps = config.run.log_every_steps

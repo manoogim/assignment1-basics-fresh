@@ -1,0 +1,58 @@
+model:
+  vocab_size: 10_000
+  seq_len: 256
+  d_model: 512
+  d_ff: 1344
+  num_layers: 4
+  num_heads: 16
+
+optimizer:
+  type: adamw
+  lr: 3.e-4
+  weight_decay: 0.1
+  betas: [0.9, 0.95]
+  eps: 1.e-8
+
+
+train:
+  batch_size: 48        
+  datatype: float32     # CPU-friendly
+  max_norm: 1.0
+  grad_eps: 1.0e-6
+
+scheduler:
+  type: "cosine"
+  warmup_frac: 0.02       # e.g. 2% of total steps spent warming up
+  cosine_frac: 0.96       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
+  minrate: 1.0e-5
+  maxrate: 3.0e-4
+
+data:
+  tokens_folder: 'C:/Users/Melissa/stanford/cs336/assignment1-basics-fresh/out/tinystories_GPT4'
+  dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
+
+run:
+  device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
+  seed: 17
+  name: 'cs336-basic'     # name of the run, used for logging and saving checkpoints
+  output_dir: 'runs/gpt2-tiny-tinystories'
+  save_every_steps: 500  # how often to save checkpoints and print stats
+  log_every_steps: 100   # how often to log stats
+  keep_last_ckpts: 10   # will keep this many files on disk
+  checkpoint_pattern: 'ckpt_{slot}.pt' 
+  resume_from: null     # do not resume from any checkpt but start frpom 0
+  avg_window: 100       # for computing running avg loss 
+  wandb_enabled: true  # whether or not to log to wandb
+
+eval:
+  num_batches: 10      # how many batches to use for validation loss
+  batch_size: 16       # batch size for validation
+  eval_every_steps: 100  # how often to evaluate validation loss
+gen:
+  temp: null
+  top_k: null
+  max_tokens: null
+  prompt_path: null
+  vocab_folder: null
+  special_tokens: null
+  model_weights_path: null
