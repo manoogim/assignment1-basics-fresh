@@ -119,7 +119,10 @@ def read_tokens_binary(tokens_file, dtype='uint16') :
     result = np.memmap(tokens_file, dtype)
     return result
 
-
+def get_tokenizer_vocab_size(vocab_readable_path: str) -> int:
+    with open(vocab_readable_path, encoding='utf-8') as f:
+        return sum(1 for _ in f)
+    
 if __name__ =='__main__':
     vocab_folder = r"C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\out\tinystories_GPT4"
     tokens_file = os.path.join(vocab_folder,'tokens_valid.bin')

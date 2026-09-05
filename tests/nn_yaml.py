@@ -27,14 +27,13 @@ class TrainConfig(NamedTuple):
 
 class SchedulerConfig(NamedTuple):
     type: str
-    tw: int
-    tc: int
+    warmup_frac: float
+    cosine_frac: float
     minrate: float
     maxrate: float
 
 class DataConfig(NamedTuple):
-    train_bin: str
-    val_bin: str
+    tokens_folder: str
     dtype: str
 
 class RunConfig(NamedTuple):

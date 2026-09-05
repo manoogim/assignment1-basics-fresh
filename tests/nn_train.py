@@ -1,12 +1,17 @@
 import os
 
-from tests.bpe_tokenizer import read_tokens_binary
+from tests.bpe_tokenizer import get_tokenizer_vocab_size, read_tokens_binary
 from tests.nn_adamw import MyAdamW
 from tests.nn_loader import get_batch, load_checkpoint, save_checkpoint
+from tests.nn_scheduler import MyScheduler
 from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
-from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss,  get_lr_cosine_sched
+from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss
 from tests.nn_yaml import Config, load_yaml_config
+TOTAL_TOKEN_BUDGET = 327_680_000
+
+def calc_total_steps(batch_size: int, context_length: int, token_budget: int = TOTAL_TOKEN_BUDGET) -> int:
+    return token_budget // (batch_size * context_length)
 
 def build_optimizer(params, config: Config):
     dd = config.optimizer
@@ -14,15 +19,25 @@ def build_optimizer(params, config: Config):
     return optim
 
 def load_tokens(config: Config):
-    dtype = config.data.dtype
-    training_tokens = read_tokens_binary(config.data.train_bin, dtype)
-    validation_tokens = read_tokens_binary(config.data.val_bin, dtype)
-    return training_tokens, validation_tokens
+    # validate that the vocab size in the config matches the tokenizer's vocab size
+    folder_name = config.data.tokens_folder
+    vocab_path = os.path.join(folder_name, 'vocab_readable.txt')
+    vocab_size = get_tokenizer_vocab_size(vocab_path)
+    if vocab_size != config.model.vocab_size:
+        raise ValueError(f'vocab_size mismatch: vocab_readable.txt has {vocab_size} entries, but config.model.vocab_size={config.model.vocab_size} found in {vocab_path}')
 
-def calc_learning_rate(iteration, config: Config):
-    cfg = config.scheduler
-    lr = get_lr_cosine_sched(iteration, cfg.maxrate, cfg.minrate, cfg.tw, cfg.tc)
-    return lr
+    result = {}
+    for file_name in ['tokens_train.bin', 'tokens_valid.bin']:
+        tokens_file = os.path.join(folder_name, file_name)
+        tokens = read_tokens_binary(tokens_file, config.data.dtype)
+        # extra validation to prevent crashing if the tokenizer vocab size is smaller than the config.model.vocab_size
+        max_id = tokens.max()
+        if max_id >= config.model.vocab_size:
+            raise ValueError(f'{file_name} max id ({max_id}) exceeds config.model.vocab_size ({config.model.vocab_size})')
+        else:
+            result[file_name] = tokens
+    
+    return result['tokens_train.bin'], result['tokens_valid.bin']
 
 def save_checkpoint_cyclic(model, optimizer, iteration, config: Config):
     folder = config.run.output_dir
@@ -47,6 +62,9 @@ def resume_checkpoint(model, optimizer, config: Config):
     
 def train(cfg_path):
     raw_cfg, config = load_yaml_config(cfg_path)
+    num_steps = calc_total_steps(config.train.batch_size, config.model.seq_len, TOTAL_TOKEN_BUDGET)
+
+    sched = MyScheduler(config.scheduler, num_steps)
 
     training_tokens, validation_tokens = load_tokens(config)
 
@@ -54,8 +72,7 @@ def train(cfg_path):
     llm.train()
 
     optim = build_optimizer(llm.parameters(), config)
-
-    num_steps = config.scheduler.tw + config.scheduler.tc
+    
     tracker = StatusTracker(num_steps, llm, raw_cfg, config)
 
     start_step = resume_checkpoint(llm, optim, config) if config.run.resume_from is not None else 0
@@ -70,7 +87,7 @@ def train(cfg_path):
         # back propagation
         loss.backward()
         grad_norm = clip_gradient(llm.parameters(), config.train.max_norm, config.train.grad_eps)
-        lr = calc_learning_rate(step + 1, config)
+        lr = sched.calc_learning_rate(step + 1)
         optim.set_lr(lr)
         optim.step()
 
@@ -97,7 +114,8 @@ def train(cfg_path):
     
 
 def main():
-    cfg_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\config\gpt2_tiny.yaml'
+    # cfg_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\config\gpt2_tiny.yaml'
+    cfg_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\config\cs336_basic.yaml'
     train(cfg_path)
 
 if __name__ == '__main__':
