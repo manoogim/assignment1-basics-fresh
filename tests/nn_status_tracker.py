@@ -81,7 +81,7 @@ class StatusTracker:
                 "rss": self._rss(),
                 "step": step,
                 "wallclock_secs": elapsed,
-            })
+            }, step=step)
 
         
     def update_checkpoint(self, step, ckpt_path):
@@ -92,7 +92,7 @@ class StatusTracker:
                 "step": step,
                 "checkpoint": ckpt_path,
                 "checkpoint_size_mb": size_mb
-            })
+            }, step=step)
 
     def update_validation(self, step, val_loss):
         val_ppl = safe_ppl(val_loss)
@@ -103,7 +103,7 @@ class StatusTracker:
                 "step": step,
                 "validation_loss": val_loss,
                 "validation_perplexity": val_ppl
-            })
+            }, step=step)
 
     def _rss(self):
         return psutil.Process(os.getpid()).memory_info().rss / (1024**3)
