@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 import os
 
+import torch
+
 from tests.bpe_tokenizer import get_tokenizer_vocab_size, read_tokens_binary
 from tests.nn_adamw import MyAdamW
 from tests.nn_loader import get_batch, load_checkpoint, save_checkpoint
@@ -13,6 +15,14 @@ TOTAL_TOKEN_BUDGET = 327_680_000
 
 def calc_total_steps(batch_size: int, context_length: int, token_budget: int = TOTAL_TOKEN_BUDGET) -> int:
     return token_budget // (batch_size * context_length)
+
+def build_model(config):
+    model = MyTransformer.from_config(config.model, config.run.device)
+    model.train()
+    if torch.cuda.is_available():
+        model.compile()
+        StatusTracker.log(f"Model compiled. Resolved device: {config.run.device}, CUDA available: {torch.cuda.is_available()}")
+    return model
 
 def build_optimizer(params, config: Config):
     dd = config.optimizer
@@ -49,13 +59,19 @@ def save_checkpoint_cyclic(model, optimizer, iteration, config: Config):
     slot = iteration // save_every_steps % keep_last   # or a running counter
     out_path = os.path.join(folder, f'ckpt_{slot}.pt')
     save_checkpoint(model, optimizer, iteration, out_path)
+    StatusTracker.log(f'Saving checkpoint at step: {iteration} to file: {out_path}')
     return out_path
 
 def resume_checkpoint(model, optimizer, config: Config):
     cpt = config.run.resume_from
     if cpt is not None:
         src = os.path.join(config.run.output_dir, cpt)
+        if not os.path.exists(src):
+            raise Exception(f'Checkpoint not loaded - file does not exist: {src}')
+        
         step = load_checkpoint(model, optimizer, src, config.run.device) + 1
+
+        StatusTracker.log(f'Resuming step: {step} from file: {src}')
     else:
         step = -1
     return step
@@ -63,14 +79,15 @@ def resume_checkpoint(model, optimizer, config: Config):
     
 def train(cfg_path):
     raw_cfg, config = load_yaml_config(cfg_path)
+    torch.manual_seed(config.run.seed)
+    
     num_steps = calc_total_steps(config.train.batch_size, config.model.seq_len, TOTAL_TOKEN_BUDGET)
 
     sched = MyScheduler(config.scheduler, num_steps)
 
     training_tokens, validation_tokens = load_tokens(config)
 
-    llm = MyTransformer.from_config(config.model, config.run.device)
-    llm.train()
+    llm = build_model(config)
 
     optim = build_optimizer(llm.parameters(), config)
     
@@ -110,13 +127,17 @@ def train(cfg_path):
                                             config.run.device)
             tracker.update_validation(step, val_loss)
 
-    print(f"Training completed. Last step: {step}. Final loss: {loss}. ") # type: ignore
+            if config.eval.target_loss is not None and val_loss < config.eval.target_loss:
+                StatusTracker.log(f'Training is stopped at step: {step}, because validation loss reached target: {val_loss:.4} <= {config.eval.target_loss}. Regular loss is {loss:.4}.')
+                break
+
+    print(f"Training completed. Last step: {step}. Last loss: {loss:.4}. ") # type: ignore
 
 
     
 
 def main(cfg_path = 'config/cs336_basic.yaml'):
-    print(f"Using configuration file: {cfg_path}")
+    StatusTracker.log(f'Using configuration file: {cfg_path}')
     train(cfg_path)
 
 if __name__ == '__main__':

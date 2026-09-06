@@ -36,6 +36,10 @@ def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteratio
     tmp_path = out_path + '.tmp'
     torch.save(obj, tmp_path)
     os.replace(tmp_path, out_path)
+    # Save step to a text file
+    txt_path = out_path + ".step.txt"
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(str(iteration))
 
 
 

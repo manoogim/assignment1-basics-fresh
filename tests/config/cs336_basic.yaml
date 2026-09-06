@@ -36,7 +36,7 @@ run:
   seed: 17
   name: 'cs336-basic'     # name of the run, used for logging and saving checkpoints
   output_dir: 'runs/gpt2-tiny-tinystories'
-  save_every_steps: 500  # how often to save checkpoints and print stats
+  save_every_steps: 200  # how often to save checkpoints and print stats
   log_every_steps: 100   # how often to log stats
   keep_last_ckpts: 10   # will keep this many files on disk
   checkpoint_pattern: 'ckpt_{slot}.pt' 
@@ -47,7 +47,9 @@ run:
 eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
-  eval_every_steps: 100  # how often to evaluate validation loss
+  eval_every_steps: 200  # how often to evaluate validation loss
+  target_loss: 2.0      # break training loop when validation loss reaches this target
+
 gen:
   temp: null
   top_k: null

@@ -16,7 +16,7 @@ def safe_ppl(loss):
 class StatusTracker:
     def __init__(self, total_steps, model: MyTransformer, raw_cfg, config: Config):
         tokens_budget = config.train.batch_size * total_steps * config.model.seq_len
-        print(f"**** Total steps: {total_steps:,}, Total tokens budget: {tokens_budget:,} ***")
+    
         self.total_steps = total_steps
         self.avg_window = config.run.avg_window
         self.log_every_steps = config.run.log_every_steps
@@ -27,11 +27,17 @@ class StatusTracker:
         self.last_time = self.start_time
         self.last_step = 0
 
+        self.log(f"Total steps: {total_steps:_}, Total tokens budget: {tokens_budget:_} ")
+
         if config.run.wandb_enabled:
             self.wandb_enabled = True
             wandb.init(project=config.run.name, name=config.run.name, config=raw_cfg)
         else:
             self.wandb_enabled = False
+
+    @classmethod
+    def log(cls, msg):
+        print(f'@@@ {msg} @@@')
 
     def update(self, step, loss, lr, grad_norm, batch_tokens):
         # Track loss

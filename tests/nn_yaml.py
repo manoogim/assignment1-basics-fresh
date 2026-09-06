@@ -52,6 +52,7 @@ class EvalConfig(NamedTuple):
     num_batches: int
     batch_size: int
     eval_every_steps: int
+    target_loss: float
 
 class GenConfig(NamedTuple):
     temp: float
@@ -75,9 +76,7 @@ class Config(NamedTuple):
 def load_yaml_config(cfg_path):
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
-        device  = resolve_device(raw['run']['device'])
-        print(f"Resolved device: {device}, CUDA available: {torch.cuda.is_available()}")
-        raw['run']['device'] = device
+        raw['run']['device'] = resolve_device(raw['run']['device'])
 
     return raw, Config(
         model=ModelConfig(**raw['model']),
