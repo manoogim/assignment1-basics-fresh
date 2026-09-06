@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import os
 
 from tests.bpe_tokenizer import get_tokenizer_vocab_size, read_tokens_binary
@@ -109,18 +110,25 @@ def train(cfg_path):
                                             config.run.device)
             tracker.update_validation(step, val_loss)
 
+    print(f"Training completed. Last step: {step}. Final loss: {loss}. ") # type: ignore
 
 
     
 
-def main():
-    # cfg_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\config\gpt2_tiny.yaml'
-    cfg_path = r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\config\cs336_basic.yaml'
+def main(cfg_path = 'config/cs336_basic.yaml'):
+    print(f"Using configuration file: {cfg_path}")
     train(cfg_path)
 
 if __name__ == '__main__':
-    # python train.py --config config/gpt2-tiny.yaml
-    main() # TODO pass path as arg
+    """
+    Usage: 
+    python train.py --config config/gpt2-tiny.yaml
+    """
+    parser = ArgumentParser(description="Train a transformer model.")
+    parser.add_argument('-c', '--config', type=str, default='tests/config/cs336_basic.yaml', help='Path to the YAML configuration file.')
+    args = parser.parse_args()
+    
+    main(args.config) # TODO pass path as arg
 
 
 

@@ -1,6 +1,5 @@
+import torch
 import yaml
-
-from tests.nn_utils import resolve_device
 
 from typing import NamedTuple, Optional
 
@@ -76,7 +75,9 @@ class Config(NamedTuple):
 def load_yaml_config(cfg_path):
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
-        raw['run']['device']  = resolve_device(raw['run']['device'])
+        device  = resolve_device(raw['run']['device'])
+        print(f"Resolved device: {device}, CUDA available: {torch.cuda.is_available()}")
+        raw['run']['device'] = device
 
     return raw, Config(
         model=ModelConfig(**raw['model']),
@@ -88,6 +89,15 @@ def load_yaml_config(cfg_path):
         eval=EvalConfig(**raw['eval']),
         gen = GenConfig(**raw['gen'])
     )
+
+def resolve_device(requested: str) -> str:
+    if requested != 'auto':
+        return requested
+    if torch.cuda.is_available():
+        return 'cuda'
+    if torch.backends.mps.is_available():
+        return 'mps'
+    return 'cpu'
 
 if __name__ == "__main__":
     cfg_path = "tests/config/gpt2_tiny.yaml"

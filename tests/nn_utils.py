@@ -128,15 +128,6 @@ def clip_gradient(params: Iterable[torch.nn.Parameter], maxgrad, eps = 1e-6):
     return l2.item()
 
 
-def resolve_device(requested: str) -> str:
-    if requested != 'auto':
-        return requested
-    if torch.cuda.is_available():
-        return 'cuda'
-    if torch.backends.mps.is_available():
-        return 'mps'
-    return 'cpu'
-
 def compute_loss(model, input_tokens, output_tokens):
     logits = model(input_tokens)
     logits = rearrange(logits, 'b c d -> (b c) d')
