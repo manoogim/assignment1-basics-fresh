@@ -1,5 +1,7 @@
 # debug_overfit_batch.py
 
+import os
+
 from tests.bpe_tokenizer import read_tokens_binary
 from tests.nn_loader import get_batch
 from tests.nn_transformer import MyTransformer
@@ -14,11 +16,11 @@ def main(cfg_path):
     llm.train()
 
     optim = MyAdamW(llm.parameters(), lr=1e-3, weight_decay=0.0, betas=(0.9, 0.999))  # reuse class, different args
-
-    training_tokens = read_tokens_binary(config.data.train_bin, config.data.dtype)
+    tokens_file = os.path.join(config.data.tokens_folder, 'tokens_train.bin')
+    training_tokens = read_tokens_binary(tokens_file, config.data.dtype)
     input_tokens, output_tokens = get_batch(training_tokens, batch_size=4, ctx_len=32, device=config.run.device)  # fetch ONCE
 
-    for step in range(500):
+    for step in range(100):
         optim.zero_grad()
         loss = compute_loss(llm, input_tokens, output_tokens)   # same fixed batch every step
         loss.backward()
@@ -27,4 +29,4 @@ def main(cfg_path):
         print(f"[{step}] loss={loss.item():.4f}")
 
 if __name__ == '__main__':
-    main(r'C:\Users\Melissa\stanford\cs336\assignment1-basics-fresh\tests\config\gpt2_tiny.yaml')
+    main(r'tests/config/gpt2_tiny.yaml')

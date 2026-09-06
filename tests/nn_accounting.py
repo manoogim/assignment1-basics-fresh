@@ -60,17 +60,18 @@ def report_peek_memory(label: str, d: ModelConfig, num_bytes: int = 4, avail_mem
     num_params, training_mem, activation_mem_per_batch, total = calc_peak_memory(d, batch_size, num_bytes)
     sol = ( avail_mem - training_mem) // activation_mem_per_batch
     print(
-    f"{label:>14} *|* "
+    f"Memory accounting for {label:>14} *|* ")
+    print(
     f"Num params: {num_params:>14,} | "
-    f"Training Memory (MB): {training_mem // 1_000_000:>8,} | "
-    f"Activation Memory per batch (MB): {activation_mem_per_batch // 1_000_000:>8,} | "
-    f"Total memory for batch={batch_size} (MB): {total:_}"
+    f"Training Memory ~ {training_mem // 1_000_000:>3,} MB | "
+    f"Activation Memory per batch ~ {activation_mem_per_batch // 1_000_000:>3,} MB | "
     )
     print (
-    f"Equation: {activation_mem_per_batch:_} * X + {training_mem:_} = {avail_mem:_} | " 
-    f"Solution: batch is {sol}"
+    f"Equation: {activation_mem_per_batch:_} * X + {training_mem:_} = {avail_mem:_} | \n" 
+    f"For available memory {avail_mem:_}: max batch size is {sol} \n"
+    f"For batch size: {batch_size}, necessary memory is: {total:_}"
     )
 
 if __name__ == "__main__":
     _, cfg = load_yaml_config('tests/config/cs336_basic.yaml')
-    report_peek_memory("cs336_basic", cfg.model, num_bytes=4, avail_mem=5_000_000_000, batch_size=cfg.train.batch_size)
+    report_peek_memory("cs336_basic", cfg.model, num_bytes=4, avail_mem=16_000_000_000, batch_size=cfg.train.batch_size)

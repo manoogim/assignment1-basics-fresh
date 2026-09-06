@@ -47,7 +47,8 @@ eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
   eval_every_steps: 100  # how often to evaluate validation loss
-
+  target_loss: null
+  
 gen:
     temp: 0.5
     top_k: 10
