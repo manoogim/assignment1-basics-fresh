@@ -31,7 +31,7 @@ class StatusTracker:
 
         if config.run.wandb_enabled:
             self.wandb_enabled = True
-            wandb.init(project=config.run.name, name=config.run.name, config=raw_cfg)
+            wandb.init(project=config.run.name, name=f'{config.run.name}-linux2', config=raw_cfg)
         else:
             self.wandb_enabled = False
 
