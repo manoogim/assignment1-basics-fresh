@@ -15,7 +15,7 @@ optimizer:
 
 
 train:
-  batch_size: 128        
+  batch_size: 64        
   datatype: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
