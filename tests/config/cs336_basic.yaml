@@ -40,7 +40,7 @@ run:
   log_every_steps: 100   # how often to log stats
   keep_last_ckpts: 10   # will keep this many files on disk
   checkpoint_pattern: 'ckpt_{slot}.pt' 
-  resume_from: ckpt_4.pt     # do not resume from any checkpt but start frpom 0
+  resume_from: null     # do not resume from any checkpt but start frpom 0
   avg_window: 100       # for computing running avg loss 
   wandb_enabled: true  # whether or not to log to wandb
 
