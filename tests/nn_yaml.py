@@ -36,7 +36,7 @@ class DataConfig(NamedTuple):
     dtype: str
 
 class RunConfig(NamedTuple):
-    device: str
+    device: str                     # auto | cuda | cpu | mps
     seed: int
     name: str
     output_dir: str

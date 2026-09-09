@@ -104,6 +104,15 @@ def cross_entropy(inputs: Float[Tensor, " batch_size vocab_size"], targets: Int[
 
 def get_lr_cosine_sched(t, alphamax, alphamin, tw, tc):
     """
+    Computes learning rate for step t. 
+        LR is guaranteed to be within range [alphamin, alphamx] when in cosine annealing stage, but not while in warmup stage.
+    Inputs:
+    t: step, starting from 1 whatever
+    alphamax: max learning rate
+    alphamin: min learning rate
+    tw: step when warmup ends, after this anealing starts (during tw period lr is a flat line, upward trending towards alphamax)
+    tc: step when anealing ends, after this it's flat rate alphamin (during tc period lr is smooth curve tending downward)
+
         (Warm-up) If 𝑡 < 𝑇𝑤, then lr = t * alphamax / tw
         (Cosine annealing) If 𝑇𝑤 ≤ 𝑡 ≤ 𝑇𝑐, then lr = alphamin + 0.5 * cos( 1 + pi * (t - tw)/tc - tw)) * (alphamax - alphamin)
         (Post-annealing) If 𝑡 > 𝑇𝑐, then lr = alphamin
@@ -153,3 +162,13 @@ def calc_validation_loss(model, validation_tokens, eval_batch_size, seq_size, nu
 def silu(x: Float[Tensor, "d_model d_ff"]) -> Float[Tensor, "d_model d_ff"]:
     result = x * torch.sigmoid(x)
     return result
+
+def derive_ckpt_name(step, save_every_steps, keep_last):
+    if step % save_every_steps != 0:
+        raise Exception('Step is not divisible with save_every_steps')
+
+    save_event_idx = step // save_every_steps -1 
+    slot = save_event_idx % keep_last
+    suffix = chr(ord('a') + slot)
+    return f'ckpt_{suffix}.pt'
+

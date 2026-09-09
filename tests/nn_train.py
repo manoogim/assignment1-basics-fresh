@@ -10,7 +10,7 @@ from tests.nn_loader import get_batch, load_checkpoint, save_checkpoint
 from tests.nn_scheduler import MyScheduler
 from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
-from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss
+from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, derive_ckpt_name
 from tests.nn_yaml import Config, load_yaml_config
 TOTAL_TOKEN_BUDGET = 327_680_000
 
@@ -21,7 +21,7 @@ def build_model(config):
     model = MyTransformer.from_config(config.model, config.run.device)
     model.train()
     StatusTracker.log(f'Created transformer model from: {config.model}')
-    if torch.cuda.is_available():
+    if config.run.device == 'cuda':
         model.compile()
         StatusTracker.log(f"Model compiled. Resolved device: {config.run.device}, CUDA available: {torch.cuda.is_available()}")
     return model
@@ -58,11 +58,9 @@ def save_checkpoint_cyclic(model: MyTransformer, optimizer: MyAdamW, sched: MySc
     folder = config.run.output_dir
     os.makedirs(folder, exist_ok=True)
 
-    # construct file name
-    keep_last = config.run.keep_last_ckpts
-    slot = iteration  % keep_last
-    suffix = chr(ord('a') + slot)
-    out_path = os.path.join(folder, f'ckpt_{suffix}.pt')
+    # construct path to ckpt file
+    ckpt_name = derive_ckpt_name(iteration, config.run.save_every_steps, config.run.keep_last_ckpts)
+    out_path = os.path.join(folder, ckpt_name)
 
     sched_info = sched.as_dict()
     sched_info['batch_size'] = config.train.batch_size
@@ -96,7 +94,13 @@ def init_run_state(model, optimizer, config: Config, total_steps) -> tuple[int,i
 
     return next_step, tokens_processed, sched # type: ignore
 
-    
+def is_cadence_hit (step, interval):
+    """
+    check if it is time to log, save checkpoint or calc validation loss
+    """
+    result = (step > 0 )and( step % interval == 0)    
+    return result
+
 def train(cfg_path):
     raw_cfg, config = load_yaml_config(cfg_path)
     torch.manual_seed(config.run.seed)
@@ -115,11 +119,7 @@ def train(cfg_path):
 
     # infinite training loop (no worries it will break based on tokens_processed or validation_loss ;)
     keep_training = True
-    loss = float('inf')
     for step in itertools.count(start_step):
-
-        if not keep_training:
-            break
 
         input_tokens, output_tokens = get_batch(training_tokens, config.train.batch_size, config.model.seq_len, config.run.device)
         tokens_processed += input_tokens.numel()
@@ -134,33 +134,41 @@ def train(cfg_path):
         optim.set_lr(lr)
         optim.step()
 
-        log_now = (step > 0 and step % config.run.log_every_steps == 0) and keep_training
+        log_now = is_cadence_hit(step, config.run.log_every_steps)
         if log_now:
             tracker.update(step, loss.item(), lr, grad_norm, tokens_processed )
 
-        save_now = (step > 0 and step % config.run.save_every_steps == 0) and keep_training
+        save_now = is_cadence_hit(step, config.run.save_every_steps)
         if save_now:
             out_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config)
             tracker.update_checkpoint(step, out_path)
 
-        eval_now = ( step > 0 and step % config.eval.eval_every_steps == 0) and keep_training
+        eval_now = is_cadence_hit( step, config.eval.eval_every_steps)
         if eval_now:
-            val_loss = calc_validation_loss(llm, validation_tokens, 
-                                            config.eval.batch_size, 
-                                            config.model.seq_len, 
-                                            config.eval.num_batches, 
-                                            config.run.device)
+            val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
             tracker.update_validation(step, val_loss)
 
             if config.eval.target_loss is not None and val_loss < config.eval.target_loss:
                 StatusTracker.log(f'Training is stopped at step: {step}, because validation loss reached target: {val_loss:.4} <= {config.eval.target_loss}. Regular loss is {loss:.4}.')
                 keep_training = False
 
-        if tokens_processed > TOTAL_TOKEN_BUDGET:
+        if tokens_processed >= TOTAL_TOKEN_BUDGET:
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {TOTAL_TOKEN_BUDGET:_}. Now training stops!')
-            keep_training = False   
+            keep_training = False
 
-    print(f"Training completed. Next step: {step}. Tokens processed: {tokens_processed:_}. Last loss: {loss:.4}. ") # type: ignore
+        if step >= 1000:
+            break
+        if not keep_training:
+            break   
+
+    # always save everything at the end
+    tracker.update(step, loss.item(), lr, grad_norm, tokens_processed ) # type: ignore
+
+    out_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config) # type: ignore
+    tracker.update_checkpoint(step, out_path) # type: ignore
+
+    print(f"Training completed. Step count: {step}. Tokens processed: {tokens_processed:_}. Last loss: {loss:.4}. ") # type: ignore
+
 
 def main(cfg_path = 'config/cs336_basic.yaml'):
     StatusTracker.log(f'Using configuration file: {cfg_path}')

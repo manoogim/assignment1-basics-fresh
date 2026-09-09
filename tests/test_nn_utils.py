@@ -3,8 +3,12 @@ import torch
 import torch.nn.functional as F
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
+from tests.nn_utils import get_lr_cosine_sched
+
 from .adapters import run_cross_entropy, run_gradient_clipping, run_softmax
 
+def test_warmup_zero_skips_warmup():
+    assert get_lr_cosine_sched(1, alphamax=1.0, alphamin=0.0, tw=0, tc=100) < 1.0  # straight into cosine
 
 def test_softmax_matches_pytorch():
     x = torch.tensor(
