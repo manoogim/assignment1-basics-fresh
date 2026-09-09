@@ -26,8 +26,8 @@ class TrainConfig(NamedTuple):
 
 class SchedulerConfig(NamedTuple):
     type: str
-    warmup_frac: float
-    cosine_frac: float
+    warmup_frac: float # fraction of total_steps at which the warmup phase ends, which also equals length of warmup phase
+    cosine_frac: float # fraction of total_steps at which the cosine phase ends, with length of cosine phase = cosine_frac - warmup_frac
     minrate: float
     maxrate: float
 
@@ -42,8 +42,7 @@ class RunConfig(NamedTuple):
     output_dir: str
     save_every_steps: int
     log_every_steps: int
-    keep_last_ckpts: int
-    checkpoint_pattern: str
+    keep_last_ckpts: int            # keep under 27.. suffix will be a letter a-z
     resume_from: Optional[str]
     avg_window: int
     wandb_enabled: bool

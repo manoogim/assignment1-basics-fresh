@@ -1,5 +1,5 @@
 model:
-  vocab_size: 50257
+  vocab_size: 10000
   seq_len: 256          # size for precomuted RoPE cache, and max context length for training
   d_model: 256          # hidden size (tiny)
   d_ff: 1024            # 4× d_model (standard GPT2 ratio)
@@ -14,7 +14,7 @@ optimizer:
   eps: 1.e-8
 
 train:
-  batch_size: 8         # 8 > 1
+  batch_size: 16         # 8 > 1
   datatype: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
@@ -22,31 +22,31 @@ train:
 scheduler:
   type: "cosine"
   warmup_frac: 0.02     # e.g. 2% of total steps spent warming up
-  cosine_frac: 1.0      # cosine decay spans the (almost-)entire remaining run
+  cosine_frac: 1.0     # leaves the last 5% of steps as flat alphamin 
   minrate: 1.0e-5
   maxrate: 3.0e-4
 
 data:
-  tokens_folder: 'C:/Users/Melissa/stanford/cs336/assignment1-basics-fresh/out/tinystories_GPT4'
+  tokens_folder: 'out/tinystories_GPT4'
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 17
-  name: 'gpt2-tiny'     # name of the run, used for logging and saving checkpoints
+  name: 'zzgpt2-tiny'     # name of the run, used for logging and saving checkpoints
   output_dir: 'runs/gpt2-tiny-tinystories'
-  save_every_steps: 200  # how often to save checkpoints and print stats
-  log_every_steps: 200   # how often to log stats
-  keep_last_ckpts: 10   # will keep this many files on disk
-  checkpoint_pattern: 'ckpt_{slot}.pt' 
-  resume_from: null     # do not resume from any checkpt but start frpom 0
+  save_every_steps: 2
+    # how often to save checkpoints and print stats
+  log_every_steps: 2   # how often to log stats
+  keep_last_ckpts: 5   # will keep this many files on disk
+  resume_from: ckpt_a.pt     # do not resume from any checkpt but start frpom 0
   avg_window: 100       # for computing running avg loss 
   wandb_enabled: true  # whether or not to log to wandb
 
 eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
-  eval_every_steps: 100  # how often to evaluate validation loss
+  eval_every_steps: 2  # how often to evaluate validation loss
   target_loss: null
   
 gen:

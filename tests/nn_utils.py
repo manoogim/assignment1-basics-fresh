@@ -110,7 +110,9 @@ def get_lr_cosine_sched(t, alphamax, alphamin, tw, tc):
     """
     if t < tw:                      #number of warmup steps
         result = t * alphamax / tw
-    elif t <= tc:                   # number of cosine annealing steps
+    elif tw == tc:                  # drop from alphamax to alphamin without any cosine phase in between
+        result = alphamin           
+    elif t < tc:                   # performe gradual cosine annealing
         result = alphamin + 0.5 * (1 + math.cos( math.pi * ( t - tw) / (tc - tw))) * (alphamax - alphamin)
     else:
         result = alphamin
@@ -118,13 +120,13 @@ def get_lr_cosine_sched(t, alphamax, alphamin, tw, tc):
 
 def clip_gradient(params: Iterable[torch.nn.Parameter], maxgrad, eps = 1e-6):
     params2 = [p for p in params if p.grad is not None]
-    norms = [p.grad.norm(2) for p in params2]
+    norms = [p.grad.norm(2) for p in params2] # type: ignore
     norms_tensor = torch.stack(norms)
     l2 = torch.norm(norms_tensor, 2)
     clip_factor = maxgrad / (l2 + eps)
     if clip_factor < 1:
         for p in params2:
-            p.grad.mul_(clip_factor)
+            p.grad.mul_(clip_factor) # type: ignore
     return l2.item()
 
 
