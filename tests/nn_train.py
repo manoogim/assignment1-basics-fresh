@@ -115,7 +115,7 @@ def train(cfg_path):
 
     start_step, tokens_processed, sched = init_run_state(llm, optim, config, total_steps)
     StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {TOTAL_TOKEN_BUDGET:_} ")
-    tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, llm, raw_cfg, config)
+    tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, raw_cfg, config)
 
     # infinite training loop (no worries it will break based on tokens_processed or validation_loss ;)
     keep_training = True

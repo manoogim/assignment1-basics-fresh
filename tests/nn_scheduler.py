@@ -16,7 +16,7 @@ class MyScheduler:
         def fmti(x):
             return f"{x:_}" if x is not None else "None"
         def fmtf(x):
-            return f"{x:.5f}" if x is not None else "None"
+            return f"{x:.8f}" if x is not None else "None"
 
         return (
             f"<warmup_end={fmti(self.warmup_end)}, "

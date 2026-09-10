@@ -14,12 +14,11 @@ def safe_ppl(loss):
         return float('inf')
     
 class StatusTracker:
-    def __init__(self, tokens_processed, total_token_budget, total_steps, model: MyTransformer, raw_cfg, config: Config):
+    def __init__(self, tokens_processed, total_token_budget, total_steps, raw_cfg, config: Config):
         self.initial_tokens_processed = tokens_processed
         self.total_token_budget = total_token_budget
         self.total_steps = total_steps
         self.avg_window = config.run.avg_window
-        self.model = model
 
         self.loss_history = []
         self.start_time = time.time()
@@ -68,7 +67,7 @@ class StatusTracker:
 
         print(f"[{step}] loss={loss:.4f} avg_loss({self.avg_window})={avg_loss:.4f} min_loss={min_loss:.4f}")
         print(f"      ppl={perplexity:.2f} avg_ppl={avg_perplexity:.2f}")
-        print(f"      lr={lr:.6f} grad_norm={grad_norm:.4f}")
+        print(f"      lr={lr:.8f} grad_norm={grad_norm:.4f}")
         print(f"      throughput={run_throughput:.1f} tokens/sec")
         print(f"      tokens_processed={tokens_processed_lifetime:_}")
         print(f"      elapsed={self._fmt(run_time)} eta={self._fmt(eta_seconds)}")
