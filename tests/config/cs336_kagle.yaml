@@ -28,7 +28,7 @@ scheduler:
   maxrate: 3.0e-4
 
 data:
-  tokens_folder: 'out/tinystories_GPT4'
+  tokens_folder:    '/kaggle/input/datasets/melissamanoog/tinystories-gpt4-tar-1-09-gb/tinystories_GPT4'
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
