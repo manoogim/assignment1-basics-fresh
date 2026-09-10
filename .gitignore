@@ -164,3 +164,5 @@ cython_debug/
 tests/bpe_train copy.txt
 data/
 out/
+runs/
+wandb/

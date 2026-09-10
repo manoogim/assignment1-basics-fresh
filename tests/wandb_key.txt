@@ -3,3 +3,39 @@ https://wandb.ai/manoogim-personal/gpt2-tiny/workspace
 
 API key also stored in C:\Users\Melissa\_netrc
 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
+
+google cloud cheat sheet
+=========================
+connect to vm
+---------------
+gcloud compute ssh cs336-a1 --zone=us-central1-a
+
+create bucket and copy my tokens vocab and bin file there
+-------------------------------------------------------------
+gcloud storage buckets create gs://transfer-bucket-project-389222cd-cs336-a1 --location=us-central1
+gcloud storage cp ~/tinystories_GPT4.tar gs://transfer-bucket-project-389222cd-cs336-a1/
+
+move file from cloud console to vm
+-------------------------------------
+gcloud compute scp ~/ckpt_h.tar cs336-a1:~/ --zone=us-central1-a
+
+run training loop in background and put logs in file train.log
+------------------------------------------------------------------
+cd assignment1-basics-fresh
+nohup uv run python -u tests/nn_train.py > train.log 2>&1 &
+
+
+did memory crash ?
+----------------------
+sudo dmesg -T | grep -i -E 'oom|kill'
+
+sudo dmesg -T | grep -i -E 'oom|kill'
+# OR
+sudo grep -i -r 'out of memory' /var/log/
+
+
+how much memory is available?
+----------------------------------
+cat /proc/meminfo | grep -i available
+then divide by 1024 * 1024 the get in gb
+
