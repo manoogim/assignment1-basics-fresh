@@ -178,7 +178,7 @@ def main(cfg_path = 'config/cs336_basic.yaml'):
 if __name__ == '__main__':
     """
     Usage: 
-    python train.py --config config/gpt2-tiny.yaml
+    python train.py --config tests/config/gpt2-tiny.yaml
     """
     parser = ArgumentParser(description="Train a transformer model.")
     parser.add_argument('-c', '--config', type=str, default='tests/config/cs336_basic.yaml', help='Path to the YAML configuration file.')

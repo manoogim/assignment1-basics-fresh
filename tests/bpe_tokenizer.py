@@ -116,7 +116,7 @@ def write_tokens_binary(dataset, tokenizer, tokens_file, buffer_size= 100_000):
 
 
 def read_tokens_binary(tokens_file, dtype='uint16') :
-    result = np.memmap(tokens_file, dtype)
+    result = np.memmap(tokens_file, dtype = dtype, mode='r')
     return result
 
 def get_tokenizer_vocab_size(vocab_readable_path: str) -> int:
