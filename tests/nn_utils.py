@@ -166,9 +166,12 @@ def silu(x: Float[Tensor, "d_model d_ff"]) -> Float[Tensor, "d_model d_ff"]:
 def derive_ckpt_name(step, save_every_steps, keep_last):
     if step % save_every_steps != 0:
         print(f'Saving off-schedule at step: {step}')
+        off = '_off'
+    else:
+        off = ''
 
     save_event_idx = step // save_every_steps -1 
     slot = save_event_idx % keep_last
     suffix = chr(ord('a') + slot)
-    return f'ckpt_{suffix}_off.pt'
+    return f'ckpt_{suffix}{off}.pt'
 

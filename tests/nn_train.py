@@ -115,9 +115,10 @@ def train(cfg_path):
 
     start_step, tokens_processed, sched = init_run_state(llm, optim, config, total_steps)
     StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {TOTAL_TOKEN_BUDGET:_} ")
-    tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, raw_cfg, config)
+    tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, sched.as_dict(), raw_cfg, config)
 
     # infinite training loop (no worries it will break based on tokens_processed or validation_loss ;)
+    step, lr, grad_norm, loss = 0, 0, 0, 0
     keep_training = True
     for step in itertools.count(start_step):
 
@@ -140,8 +141,8 @@ def train(cfg_path):
 
         save_now = is_cadence_hit(step, config.run.save_every_steps)
         if save_now:
-            out_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config)
-            tracker.update_checkpoint(step, out_path)
+            ckpt_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config)
+            tracker.update_checkpoint(step, ckpt_path)
 
         eval_now = is_cadence_hit( step, config.eval.eval_every_steps)
         if eval_now:
@@ -162,13 +163,19 @@ def train(cfg_path):
         if not keep_training:
             break   
 
-    # always save everything at the end
-    tracker.update(step, loss.item(), lr, grad_norm, tokens_processed ) # type: ignore
+    # always print everything at the end and save last checkpoint
 
-    out_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config) # type: ignore
-    tracker.update_checkpoint(step, out_path) # type: ignore
+    tracker.update(step, loss, lr, grad_norm, tokens_processed)
 
-    print(f"Training completed. Step count: {step}. Tokens processed: {tokens_processed:_}. Last loss: {loss:.4}. ") # type: ignore
+    val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
+    tracker.update_validation(step, val_loss)
+
+    ckpt_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config) # type: ignore
+    tracker.update_checkpoint(step, ckpt_path)
+
+    tracker.upload_ckpt(ckpt_path)
+
+    tracker.log(f"Training completed. Step count: {step}. Tokens processed: {tokens_processed:_}. Last loss: {loss:.4}. ") # type: ignore
 
 
 def main(cfg_path = 'config/cs336_basic.yaml'):
@@ -185,7 +192,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     main(args.config)
-
-
-
 

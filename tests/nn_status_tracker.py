@@ -14,22 +14,24 @@ def safe_ppl(loss):
         return float('inf')
     
 class StatusTracker:
-    def __init__(self, tokens_processed, total_token_budget, total_steps, raw_cfg, config: Config):
+    def __init__(self, tokens_processed, total_token_budget, total_steps, sched_as_dict, raw_cfg, config: Config):
         self.initial_tokens_processed = tokens_processed
         self.total_token_budget = total_token_budget
-        self.total_steps = total_steps
         self.avg_window = config.run.avg_window
 
         self.loss_history = []
         self.start_time = time.time()
-        
 
         if config.run.wandb_enabled:
-            self.wandb_enabled = True
             run_name = f'{config.run.name}_{config.train.batch_size}'
-            wandb.init(project=config.run.name, name=run_name, config=raw_cfg)
+
+            # this helps to log actual lengths of each sched phase
+            raw_cfg['schedule'] = sched_as_dict
+
+            self.wandb = wandb.init(project=config.run.name, name=run_name, config=raw_cfg)
+            self.wandb.summary.update ({"token_budget": total_token_budget, "total_steps": total_steps,"previous_tokens": tokens_processed})
         else:
-            self.wandb_enabled = False
+            self.wandb = None
 
     @classmethod
     def log(cls, msg):
@@ -73,8 +75,8 @@ class StatusTracker:
         print(f"      elapsed={self._fmt(run_time)} eta={self._fmt(eta_seconds)}")
         print(f"      rss={self._rss():.2f}GB")
        
-        if self.wandb_enabled:
-            wandb.log({
+        if self.wandb is not None:
+            self.wandb.log({
                 "loss": loss,
                 "avg_loss": avg_loss,
                 "perplexity": perplexity,
@@ -91,8 +93,8 @@ class StatusTracker:
     def update_checkpoint(self, step, ckpt_path):
         size_mb = os.path.getsize(ckpt_path) / (1024 * 1024)
         print(f"[{step}] Saved checkpoint: {ckpt_path} ({size_mb:.1f}MB)")
-        if self.wandb_enabled:
-            wandb.log({
+        if self.wandb is not None:
+            self.wandb.log({
                 "step": step,
                 "checkpoint": ckpt_path,
                 "checkpoint_size_mb": size_mb
@@ -102,8 +104,8 @@ class StatusTracker:
         val_ppl = safe_ppl(val_loss)
         print(f"[{step}] Validation loss: {val_loss:.4f}   ppl: {val_ppl:.2f}")
         
-        if self.wandb_enabled:
-            wandb.log({
+        if self.wandb is not None:
+            self.wandb.log({
                 "step": step,
                 "validation_loss": val_loss,
                 "validation_perplexity": val_ppl
@@ -118,5 +120,25 @@ class StatusTracker:
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
         return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
+    
+    def upload_ckpt(self, ckpt_path):
+
+        if self.wandb is not None:
+            self.log(f'Start uploading last weights to wandb.')
+            # add the actual file to wandb
+            artifact_name = 'last_ckpt'   # → "ckpt_a_off.pt"
+            metadata={'path': ckpt_path}
+        
+            artifact = wandb.Artifact(name=artifact_name, type = 'model', metadata=metadata)
+            artifact.add_file(ckpt_path, name=os.path.basename(ckpt_path))
+            self.wandb.log_artifact(artifact)
+            try:
+                artifact.wait() # wait without short timeout
+                self.log('Completed upload.')
+            except Exception as ex:
+                self.log(f'Error while waiting to upload weights to wandb. {ex}')
+            finally:
+                self.log('BYE')
+                self.wandb.finish()
 
 
