@@ -32,7 +32,7 @@ data:
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
-  num_steps_dbg: 2      # break train loop after this number of steps, meand for dev/dbg only
+  num_steps_dbg: null      # break train loop after this number of steps, meand for dev/dbg only
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 17
   name: 'cs336-basic-dbg'     # wandb name of the run, used for logging and saving checkpoints 

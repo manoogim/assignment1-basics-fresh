@@ -149,8 +149,8 @@ def train(cfg_path):
             tracker.update_validation(step, val_loss)
 
             if config.eval.target_loss is not None and val_loss < config.eval.target_loss:
-                StatusTracker.log(f'Training is stopped at step: {step}, because validation loss reached target: {val_loss:.4} <= {config.eval.target_loss}. Regular loss is {loss:.4}.')
-                keep_training = False
+                StatusTracker.log(f'Training milestone at step: {step}, validation loss reached target: {val_loss:.4} <= {config.eval.target_loss}. Regular loss is {loss:.4}.')
+                # keep_training = False
 
         if tokens_processed >= TOTAL_TOKEN_BUDGET:
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {TOTAL_TOKEN_BUDGET:_}. Now training stops!')
