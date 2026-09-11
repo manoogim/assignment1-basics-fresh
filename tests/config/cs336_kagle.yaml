@@ -35,10 +35,10 @@ run:
   num_steps_dbg: null
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 17
-  name: 'cs336-basic-kagle'     # name of the run, used for logging and saving checkpoints 
-  output_dir: 'runs/cs336_tinystories'
-  save_every_steps: 100  # how often to save checkpoints stats
-  log_every_steps: 100   # how often to log stats
+  name: 'cs336-basic-kagle-40mm'     # name of the run, used for logging and saving checkpoints 
+  output_dir: 'runs/cs336_tinystories_40mm'
+  save_every_steps: 20  # how often to save checkpoints stats
+  log_every_steps: 20   # how often to log stats
   keep_last_ckpts: 5   # will keep this many files on disk
   resume_from: null     # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
@@ -47,8 +47,8 @@ run:
 eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
-  eval_every_steps: 100  # how often to evaluate validation loss
-  target_loss: 2.0      # break training loop when validation loss reaches this target
+  eval_every_steps: 20  # how often to evaluate validation loss
+  target_loss: null      # break training loop when validation loss reaches this target
 
 gen:
   temp: null
