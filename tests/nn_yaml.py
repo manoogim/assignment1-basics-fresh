@@ -36,6 +36,7 @@ class DataConfig(NamedTuple):
     dtype: str
 
 class RunConfig(NamedTuple):
+    num_steps_dbg: int              # meant for dev purposes, keep it null in prod
     device: str                     # auto | cuda | cpu | mps
     seed: int
     name: str

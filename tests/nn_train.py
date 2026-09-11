@@ -156,8 +156,9 @@ def train(cfg_path):
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {TOTAL_TOKEN_BUDGET:_}. Now training stops!')
             keep_training = False
 
-        if step >= 1000:
-            break
+        if config.run.num_steps_dbg is not None and step >= config.run.num_steps_dbg:
+            keep_training = False
+
         if not keep_training:
             break   
 

@@ -32,6 +32,7 @@ data:
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
+  num_steps_dbg: null
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 17
   name: 'cs336-basic-kagle'     # name of the run, used for logging and saving checkpoints 
