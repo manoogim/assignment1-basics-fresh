@@ -15,7 +15,7 @@ optimizer:
 
 
 train:
-  batch_size: 128        
+  batch_size: 48        
   datatype: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
@@ -35,7 +35,7 @@ run:
   num_steps_dbg: null
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 17
-  name: 'cs336-basic-kagle-40mm'     # name of the run, used for logging and saving checkpoints 
+  name: 'cs336-basic-kagle-40mm-b48'     # name of the run, used for logging and saving checkpoints 
   output_dir: 'runs/cs336_tinystories_40mm'
   save_every_steps: 20  # how often to save checkpoints stats
   log_every_steps: 20   # how often to log stats
