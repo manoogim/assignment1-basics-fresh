@@ -21,9 +21,11 @@ class StatusTracker:
 
         self.loss_history = []
         self.start_time = time.time()
+        self.min_loss = float('inf')
+        self.min_val_loss = float('inf')
 
         if config.run.wandb_enabled:
-            run_name = f'{config.run.name}_{config.train.batch_size}'
+            run_name = f'{config.run.name}{config.run.seed}_{config.train.batch_size}'
 
             # this helps to log actual lengths of each sched phase
             raw_cfg['schedule'] = sched_as_dict
@@ -46,6 +48,8 @@ class StatusTracker:
         # Compute averages
         avg_loss = sum(self.loss_history) / len(self.loss_history)
         min_loss = min(self.loss_history)
+        if min_loss < self.min_loss:
+            self.min_loss = min_loss
 
         # Compute perplexity
         perplexity = safe_ppl(loss)
@@ -67,7 +71,7 @@ class StatusTracker:
 
         # Print periodic status
 
-        print(f"[{step}] loss={loss:.4f} avg_loss({self.avg_window})={avg_loss:.4f} min_loss={min_loss:.4f}")
+        print(f"[{step}] loss={loss:.4f} avg_loss({self.avg_window})={avg_loss:.4f} min_loss={self.min_loss:.4f}")
         print(f"      ppl={perplexity:.2f} avg_ppl={avg_perplexity:.2f}")
         print(f"      lr={lr:.8f} grad_norm={grad_norm:.4f}")
         print(f"      throughput={run_throughput:.1f} tokens/sec")
@@ -86,7 +90,8 @@ class StatusTracker:
                 "throughput": run_throughput,
                 "rss": self._rss(),
                 "step": step,
-                "tokens_processed": tokens_processed_lifetime
+                "tokens_processed": tokens_processed_lifetime,
+                "elapsed": elapsed
             }, step=step)
 
         
@@ -100,16 +105,24 @@ class StatusTracker:
                 "checkpoint_size_mb": size_mb
             }, step=step)
 
-    def update_validation(self, step, val_loss):
+    def update_validation(self, step, val_loss, tokens_processed_lifetime):
+        new_best = None
+        if val_loss < self.min_val_loss:
+            self.min_val_loss = val_loss
+            new_best = step
+
         val_ppl = safe_ppl(val_loss)
-        print(f"[{step}] Validation loss: {val_loss:.4f}   ppl: {val_ppl:.2f}")
+        print(f"[{step}] Validation Loss: {val_loss:.4f} Min Validation Loss: {self.min_val_loss:.4f} Tokens: {tokens_processed_lifetime:_} ppl: {val_ppl:.2f}")
         
         if self.wandb is not None:
             self.wandb.log({
                 "step": step,
                 "validation_loss": val_loss,
+                "tokens_processed":tokens_processed_lifetime,
                 "validation_perplexity": val_ppl
             }, step=step)
+
+        return new_best
 
     def _rss(self):
         return psutil.Process(os.getpid()).memory_info().rss / (1024**3)

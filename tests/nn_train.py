@@ -54,12 +54,11 @@ def load_tokens(config: Config):
     
     return result['tokens_train.bin'], result['tokens_valid.bin']
 
-def save_checkpoint_cyclic(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, iteration, tokens_processed: int, config: Config):
+def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, iteration, tokens_processed: int, config: Config, ckpt_name: str ):
     folder = config.run.output_dir
     os.makedirs(folder, exist_ok=True)
 
     # construct path to ckpt file
-    ckpt_name = derive_ckpt_name(iteration, config.run.save_every_steps, config.run.keep_last_ckpts)
     out_path = os.path.join(folder, ckpt_name)
 
     sched_info = sched.as_dict()
@@ -117,7 +116,7 @@ def train(cfg_path):
     StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {TOTAL_TOKEN_BUDGET:_} ")
     tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, sched.as_dict(), raw_cfg, config)
 
-    # infinite training loop (no worries it will break based on tokens_processed or validation_loss ;)
+    # infinite training loop (no worries it will break based on tokens_processed  ;)
     step, lr, grad_norm, loss = 0, 0, 0, 0
     keep_training = True
     for step in itertools.count(start_step):
@@ -139,19 +138,21 @@ def train(cfg_path):
         if log_now:
             tracker.update(step, loss.item(), lr, grad_norm, tokens_processed )
 
-        save_now = is_cadence_hit(step, config.run.save_every_steps)
-        if save_now:
-            ckpt_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config)
-            tracker.update_checkpoint(step, ckpt_path)
-
         eval_now = is_cadence_hit( step, config.eval.eval_every_steps)
         if eval_now:
             val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
-            tracker.update_validation(step, val_loss)
+            tracker.update_validation(step, val_loss, tokens_processed)
+
 
             if config.eval.target_loss is not None and val_loss < config.eval.target_loss:
                 StatusTracker.log(f'Training milestone at step: {step}, validation loss reached target: {val_loss:.4} <= {config.eval.target_loss}. Regular loss is {loss:.4}.')
                 # keep_training = False
+
+        save_now = is_cadence_hit(step, config.run.save_every_steps)
+        if save_now:
+            ckpt_name = derive_ckpt_name(step, config.run.save_every_steps, config.run.keep_last_ckpts)
+            ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, ckpt_name)
+            tracker.update_checkpoint(step, ckpt_path)
 
         if tokens_processed >= TOTAL_TOKEN_BUDGET:
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {TOTAL_TOKEN_BUDGET:_}. Now training stops!')
@@ -168,12 +169,12 @@ def train(cfg_path):
     tracker.update(step, loss, lr, grad_norm, tokens_processed)
 
     val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
-    tracker.update_validation(step, val_loss)
+    tracker.update_validation(step, val_loss, tokens_processed)
 
-    ckpt_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config) # type: ignore
-    tracker.update_checkpoint(step, ckpt_path)
+    final_ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, f'final_ckpt_{step}.pt') # type: ignore
+    tracker.update_checkpoint(step, final_ckpt_path)
 
-    tracker.upload_ckpt(ckpt_path)
+    tracker.upload_ckpt(final_ckpt_path)
 
     tracker.log(f"Training completed. Step count: {step}. Tokens processed: {tokens_processed:_}. Last loss: {loss:.4}. ") # type: ignore
 
