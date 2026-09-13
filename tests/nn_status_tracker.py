@@ -20,6 +20,7 @@ class StatusTracker:
         self.avg_window = config.run.avg_window
 
         self.loss_history = []
+        self.val_los_hist = {}
         self.start_time = time.time()
         self.min_loss = float('inf')
         self.min_val_loss = float('inf')
@@ -94,7 +95,13 @@ class StatusTracker:
                 "elapsed": elapsed
             }, step=step)
 
-        
+
+    def report_minvallos_step(self):
+        ml = self.min_val_loss
+        step = self.val_los_hist[ml]
+        self.log(f'Min val loss: {self.min_val_loss} achieved at step: {step}')
+        return step
+
     def update_checkpoint(self, step, ckpt_path):
         size_mb = os.path.getsize(ckpt_path) / (1024 * 1024)
         print(f"[{step}] Saved checkpoint: {ckpt_path} ({size_mb:.1f}MB)")
@@ -108,6 +115,7 @@ class StatusTracker:
     def update_validation(self, step, val_loss, tokens_processed_lifetime):
         new_best = None
         if val_loss < self.min_val_loss:
+            self.val_los_hist[val_loss] = step
             self.min_val_loss = val_loss
             new_best = step
 
@@ -135,8 +143,9 @@ class StatusTracker:
         return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
     
     def upload_ckpt(self, ckpt_path):
-
+        minvalloss_step = self.report_minvallos_step()
         if self.wandb is not None:
+            self.wandb.summary.update({'step_at_min_val_loss': minvalloss_step})
             self.log(f'Start uploading last weights to wandb.')
             # add the actual file to wandb
             artifact_name = 'last_ckpt'   # → "ckpt_a_off.pt"
