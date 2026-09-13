@@ -15,15 +15,15 @@ optimizer:
 
 
 train:
-  batch_size: 48        
+  batch_size: 128        
   datatype: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
 
 scheduler:
   type: "cosine"
-  warmup_frac: 0.09       # e.g. 2% of total steps spent warming up
-  cosine_frac: 0.91       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
+  warmup_frac: 0.08       # e.g. 2% of total steps spent warming up
+  cosine_frac: 0.93       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
   minrate: 1.0e-5
   maxrate: 3.0e-4
 
