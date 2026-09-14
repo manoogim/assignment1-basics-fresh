@@ -73,3 +73,9 @@ class MyScheduler:
         else:
             lr = self.maxrate
         return lr
+
+
+if __name__ == '__main__':
+    cfg = SchedulerConfig('cosine', 0.08, 0.93, 0.00001, 0.0003)
+    sch = MyScheduler.from_config(cfg, 1220)
+    print(sch)

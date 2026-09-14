@@ -36,11 +36,12 @@ class DataConfig(NamedTuple):
     dtype: str
 
 class RunConfig(NamedTuple):
+    ckpt_best_below: float          # # only start tracking "best" once val loss crosses this
     num_steps_dbg: int              # meant for dev purposes, keep it null in prod
     device: str                     # auto | cuda | cpu | mps
     seed: int
     name: str
-    output_dir: str
+    out_prefix: str
     save_every_steps: int
     log_every_steps: int
     keep_last_ckpts: int            # keep under 27.. suffix will be a letter a-z
@@ -63,6 +64,10 @@ class GenConfig(NamedTuple):
     special_tokens: list[str]
     model_weights_path: str
 
+class NamingConfig(NamedTuple):
+    active: str
+    templates: dict
+
 class Config(NamedTuple):
     model: ModelConfig
     optimizer: OptimizerConfig
@@ -72,6 +77,7 @@ class Config(NamedTuple):
     run: RunConfig
     eval: EvalConfig
     gen: GenConfig
+    naming: NamingConfig
     
 def load_yaml_config(cfg_path):
     with open(cfg_path) as f:
@@ -86,7 +92,8 @@ def load_yaml_config(cfg_path):
         data=DataConfig(**raw['data']),
         run=RunConfig(**raw['run']),
         eval=EvalConfig(**raw['eval']),
-        gen = GenConfig(**raw['gen'])
+        gen = GenConfig(**raw['gen']),
+        naming = NamingConfig(**raw['naming'])
     )
 
 def resolve_device(requested: str) -> str:

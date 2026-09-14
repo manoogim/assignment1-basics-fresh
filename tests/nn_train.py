@@ -12,7 +12,7 @@ from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
 from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, derive_ckpt_name
 from tests.nn_yaml import Config, load_yaml_config
-TOTAL_TOKEN_BUDGET = 327_680_000
+TOTAL_TOKEN_BUDGET = 40_000_000
 
 def calc_total_steps(batch_size: int, context_length: int, token_budget: int = TOTAL_TOKEN_BUDGET) -> int:
     return token_budget // (batch_size * context_length)
@@ -54,12 +54,21 @@ def load_tokens(config: Config):
     
     return result['tokens_train.bin'], result['tokens_valid.bin']
 
-def save_checkpoint_cyclic(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, iteration, tokens_processed: int, config: Config):
-    folder = config.run.output_dir
+def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens):
+    threshold = config.run.ckpt_best_below
+    val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
+    new_best_val = tracker.update_validation(step, val_loss, tokens_processed)
+
+    if new_best_val is not None and new_best_val < threshold:
+        path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, 'best_ckpt.pt')
+        tracker.update_checkpoint(step, path)
+    return new_best_val
+
+def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, iteration, tokens_processed: int, config: Config, ckpt_name: str ):
+    folder = f'{config.run.out_prefix}_{TOTAL_TOKEN_BUDGET//1_000_000}mm_b{config.train.batch_size}'
     os.makedirs(folder, exist_ok=True)
 
     # construct path to ckpt file
-    ckpt_name = derive_ckpt_name(iteration, config.run.save_every_steps, config.run.keep_last_ckpts)
     out_path = os.path.join(folder, ckpt_name)
 
     sched_info = sched.as_dict()
@@ -117,7 +126,7 @@ def train(cfg_path):
     StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {TOTAL_TOKEN_BUDGET:_} ")
     tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, sched.as_dict(), raw_cfg, config)
 
-    # infinite training loop (no worries it will break based on tokens_processed or validation_loss ;)
+    # infinite training loop (no worries it will break based on tokens_processed  ;)
     step, lr, grad_norm, loss = 0, 0, 0, 0
     keep_training = True
     for step in itertools.count(start_step):
@@ -139,19 +148,15 @@ def train(cfg_path):
         if log_now:
             tracker.update(step, loss.item(), lr, grad_norm, tokens_processed )
 
-        save_now = is_cadence_hit(step, config.run.save_every_steps)
-        if save_now:
-            ckpt_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config)
-            tracker.update_checkpoint(step, ckpt_path)
-
         eval_now = is_cadence_hit( step, config.eval.eval_every_steps)
         if eval_now:
-            val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
-            tracker.update_validation(step, val_loss)
+            maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens)
 
-            if config.eval.target_loss is not None and val_loss < config.eval.target_loss:
-                StatusTracker.log(f'Training milestone at step: {step}, validation loss reached target: {val_loss:.4} <= {config.eval.target_loss}. Regular loss is {loss:.4}.')
-                # keep_training = False
+        save_now = is_cadence_hit(step, config.run.save_every_steps)
+        if save_now:
+            ckpt_name = derive_ckpt_name(step, config.run.save_every_steps, config.run.keep_last_ckpts)
+            ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, ckpt_name)
+            tracker.update_checkpoint(step, ckpt_path)
 
         if tokens_processed >= TOTAL_TOKEN_BUDGET:
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {TOTAL_TOKEN_BUDGET:_}. Now training stops!')
@@ -167,13 +172,12 @@ def train(cfg_path):
 
     tracker.update(step, loss, lr, grad_norm, tokens_processed)
 
-    val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
-    tracker.update_validation(step, val_loss)
+    maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens)
 
-    ckpt_path = save_checkpoint_cyclic(llm, optim, sched, step, tokens_processed, config) # type: ignore
-    tracker.update_checkpoint(step, ckpt_path)
+    final_ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, f'final_ckpt_{step}.pt') # type: ignore
+    tracker.update_checkpoint(step, final_ckpt_path)
 
-    tracker.upload_ckpt(ckpt_path)
+    tracker.finalize(final_ckpt_path)
 
     tracker.log(f"Training completed. Step count: {step}. Tokens processed: {tokens_processed:_}. Last loss: {loss:.4}. ") # type: ignore
 
@@ -185,11 +189,10 @@ def main(cfg_path = 'config/cs336_basic.yaml'):
 if __name__ == '__main__':
     """
     Usage: 
-    python train.py --config tests/config/gpt2-tiny.yaml
+    python train.py --config tests/config/gpt2_tiny.yaml
     """
     parser = ArgumentParser(description="Train a transformer model.")
-    parser.add_argument('-c', '--config', type=str, default='tests/config/cs336_basic.yaml', help='Path to the YAML configuration file.')
+    parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file.')
     args = parser.parse_args()
     
     main(args.config)
-

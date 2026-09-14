@@ -4,8 +4,7 @@ import os
 import psutil
 import wandb
 
-from tests.nn_transformer import MyTransformer
-from tests.nn_yaml import Config
+from tests.nn_yaml import Config, load_yaml_config
 
 def safe_ppl(loss):
     try:
@@ -20,14 +19,20 @@ class StatusTracker:
         self.avg_window = config.run.avg_window
 
         self.loss_history = []
+        self.val_los_hist = {}
         self.start_time = time.time()
+        self.min_loss = float('inf')
+        self.min_val_loss = float('inf')
+
+        # this helps to log actual lengths of each sched phase
+        raw_cfg['schedule'] = sched_as_dict
+
+        # each run is named according to the active name template
+        active = config.naming.active
+        templ = config.naming.templates[active]
+        run_name = templ.format(config = config)
 
         if config.run.wandb_enabled:
-            run_name = f'{config.run.name}_{config.train.batch_size}'
-
-            # this helps to log actual lengths of each sched phase
-            raw_cfg['schedule'] = sched_as_dict
-
             self.wandb = wandb.init(project=config.run.name, name=run_name, config=raw_cfg)
             self.wandb.summary.update ({"token_budget": total_token_budget, "total_steps": total_steps,"previous_tokens": tokens_processed})
         else:
@@ -46,6 +51,8 @@ class StatusTracker:
         # Compute averages
         avg_loss = sum(self.loss_history) / len(self.loss_history)
         min_loss = min(self.loss_history)
+        if min_loss < self.min_loss:
+            self.min_loss = min_loss
 
         # Compute perplexity
         perplexity = safe_ppl(loss)
@@ -67,7 +74,7 @@ class StatusTracker:
 
         # Print periodic status
 
-        print(f"[{step}] loss={loss:.4f} avg_loss({self.avg_window})={avg_loss:.4f} min_loss={min_loss:.4f}")
+        print(f"[{step}] loss={loss:.4f} avg_loss({self.avg_window})={avg_loss:.4f} min_loss={self.min_loss:.4f}")
         print(f"      ppl={perplexity:.2f} avg_ppl={avg_perplexity:.2f}")
         print(f"      lr={lr:.8f} grad_norm={grad_norm:.4f}")
         print(f"      throughput={run_throughput:.1f} tokens/sec")
@@ -86,10 +93,10 @@ class StatusTracker:
                 "throughput": run_throughput,
                 "rss": self._rss(),
                 "step": step,
-                "tokens_processed": tokens_processed_lifetime
+                "tokens_processed": tokens_processed_lifetime,
+                "elapsed": elapsed
             }, step=step)
 
-        
     def update_checkpoint(self, step, ckpt_path):
         size_mb = os.path.getsize(ckpt_path) / (1024 * 1024)
         print(f"[{step}] Saved checkpoint: {ckpt_path} ({size_mb:.1f}MB)")
@@ -100,29 +107,34 @@ class StatusTracker:
                 "checkpoint_size_mb": size_mb
             }, step=step)
 
-    def update_validation(self, step, val_loss):
+    def update_validation(self, step, val_loss, tokens_processed_lifetime):
+        # tracking best loss for reporting at end
+        new_best = None
+        if val_loss < self.min_val_loss:
+            self.val_los_hist[val_loss] = step
+            self.min_val_loss = val_loss
+            new_best = val_loss
+
         val_ppl = safe_ppl(val_loss)
-        print(f"[{step}] Validation loss: {val_loss:.4f}   ppl: {val_ppl:.2f}")
+        print(f"[{step}] Validation Loss: {val_loss:.4f} | Min val loss: {self.min_val_loss:.4f} | Tokens: {tokens_processed_lifetime:_} | ppl: {val_ppl:.2f}")
         
         if self.wandb is not None:
             self.wandb.log({
                 "step": step,
                 "validation_loss": val_loss,
+                "tokens_processed":tokens_processed_lifetime,
                 "validation_perplexity": val_ppl
             }, step=step)
 
-    def _rss(self):
-        return psutil.Process(os.getpid()).memory_info().rss / (1024**3)
+        return new_best
 
-    def _fmt(self, seconds):
-        if seconds <= 0:
-            return "--:--:--"
-        m, s = divmod(seconds, 60)
-        h, m = divmod(m, 60)
-        return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
-    
-    def upload_ckpt(self, ckpt_path):
+    def finalize(self, ckpt_path):
+        minvalloss_step = self.report_best_loss()
+        if self.wandb is not None:
+            self.wandb.summary.update({'step_at_min_val_loss': minvalloss_step})        
+            self.upload_ckpt(ckpt_path)
 
+    def upload_ckpt(self, ckpt_path):      
         if self.wandb is not None:
             self.log(f'Start uploading last weights to wandb.')
             # add the actual file to wandb
@@ -141,4 +153,29 @@ class StatusTracker:
                 self.log('BYE')
                 self.wandb.finish()
 
+    def report_best_loss(self):
+        ml = min(self.loss_history)
+        # report at which step min_loss achieved
+        mvl = self.min_val_loss
+        step = self.val_los_hist[mvl]
+        self.log(f'Min val loss: {self.min_val_loss:.6f} achieved at step: {step:.6f}, Min loss: {ml:.6f}')
+        return step
 
+    def _rss(self):
+        return psutil.Process(os.getpid()).memory_info().rss / (1024**3)
+
+    def _fmt(self, seconds):
+        if seconds <= 0:
+            return "--:--:--"
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
+
+
+if __name__ == '__main__':
+    _, conf = load_yaml_config('tests/config/gpt2_tiny.yaml')
+    active = conf.naming.active
+    templ = conf.naming.templates[active]
+    name = templ.format(config = conf)
+    print(f'name: {name}')
+    

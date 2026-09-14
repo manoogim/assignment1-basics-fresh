@@ -15,40 +15,40 @@ optimizer:
 
 
 train:
-  batch_size: 48        
+  batch_size: 136        
   datatype: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
 
 scheduler:
   type: "cosine"
-  warmup_frac: 0.02       # e.g. 2% of total steps spent warming up
-  cosine_frac: 0.96       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
+  warmup_frac: 0.08       # e.g. 2% of total steps spent warming up
+  cosine_frac: 0.93       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
   minrate: 1.0e-5
   maxrate: 3.0e-4
 
 data:
-  tokens_folder: 'out/tinystories_GPT4'
+  tokens_folder:    '/kaggle/input/datasets/melissamanoog/tinystories-gpt4-tar-1-09-gb/tinystories_GPT4'
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
-  num_steps_dbg: 50      # break train loop after this number of steps, meand for dev/dbg only
+  num_steps_dbg: null
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
-  seed: 17
-  name: 'cs336-basic-dbg'     # wandb name of the run, used for logging and saving checkpoints 
-  output_dir: 'runs/cs336_tinystories'
-  save_every_steps: 100  # how often to save checkpoints stats
-  log_every_steps: 10   # how often to log stats
-  keep_last_ckpts: 8   # will keep this many files on disk
-  resume_from: ckpt_a.pt     # name of ckpt resume from or null to start frpom 0
+  seed: 29
+  name: 'abla_batch'     # name of the run, used for logging and saving checkpoints 
+  output_dir: 'runs/cs336_tinystories_40mm'
+  save_every_steps: 20  # how often to save checkpoints stats
+  log_every_steps: 20   # how often to log stats
+  keep_last_ckpts: 5   # will keep this many files on disk
+  resume_from: null    # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
   wandb_enabled: true  # whether or not to log to wandb
 
 eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
-  eval_every_steps: 10  # how often to evaluate validation loss
-  target_loss: 2.0      # break training loop when validation loss reaches this target
+  eval_every_steps: 20  # how often to evaluate validation loss
+  target_loss: null      # break training loop when validation loss reaches this target
 
 gen:
   temp: null
@@ -59,9 +59,9 @@ gen:
   special_tokens: null
   model_weights_path: null
 
+
 naming:
   active: seeded
   templates:
     seeded: '{config.run.name}{config.run.seed}_{config.train.batch_size}'
     plain: '{config.run.name}_project'
-    
