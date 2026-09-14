@@ -40,7 +40,7 @@ run:
   save_every_steps: 20  # how often to save checkpoints stats
   log_every_steps: 20   # how often to log stats
   keep_last_ckpts: 5   # will keep this many files on disk
-  resume_from: null     # name of ckpt resume from or null to start frpom 0
+  resume_from: ckpt_c.pt     # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
   wandb_enabled: true  # whether or not to log to wandb
 
