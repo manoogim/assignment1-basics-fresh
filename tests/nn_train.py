@@ -12,7 +12,7 @@ from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
 from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, derive_ckpt_name
 from tests.nn_yaml import Config, load_yaml_config
-TOTAL_TOKEN_BUDGET = 40_000_000
+TOTAL_TOKEN_BUDGET = 327_680_000
 
 def calc_total_steps(batch_size: int, context_length: int, token_budget: int = TOTAL_TOKEN_BUDGET) -> int:
     return token_budget // (batch_size * context_length)
