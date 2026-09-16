@@ -64,7 +64,7 @@ def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker: 
     val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
     new_best_val = tracker.update_validation(step, val_loss, tokens_processed)
 
-    safe_to_save = new_best_val is not None and (threshold is not None or new_best_val < threshold)
+    safe_to_save = new_best_val is not None and new_best_val < threshold
     if safe_to_save:
         path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, 'best_ckpt.pt')
         tracker.update_checkpoint(step, path, True)
