@@ -12,10 +12,15 @@ from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
 from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, derive_ckpt_name
 from tests.nn_yaml import Config, load_yaml_config
+
 TOTAL_TOKEN_BUDGET = 327_680_000
 
 def calc_total_steps(batch_size: int, context_length: int, token_budget: int = TOTAL_TOKEN_BUDGET) -> int:
     return token_budget // (batch_size * context_length)
+
+def derive_runs_folder(config: Config, token_budget: int = TOTAL_TOKEN_BUDGET):
+    folder = f'{config.run.out_prefix}_{token_budget//1_000_000}mm_b{config.train.batch_size}'
+    return folder
 
 def build_model(config):
     model = MyTransformer.from_config(config.model, config.run.device)
@@ -54,21 +59,22 @@ def load_tokens(config: Config):
     
     return result['tokens_train.bin'], result['tokens_valid.bin']
 
-def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens):
+def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker: StatusTracker, validation_tokens):
     threshold = config.run.ckpt_best_below
     val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
     new_best_val = tracker.update_validation(step, val_loss, tokens_processed)
 
-    if new_best_val is not None and new_best_val < threshold:
+    safe_to_save = new_best_val is not None and (threshold is not None or new_best_val < threshold)
+    if safe_to_save:
         path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, 'best_ckpt.pt')
-        tracker.update_checkpoint(step, path)
+        tracker.update_checkpoint(step, path, True)
     return new_best_val
 
 def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, iteration, tokens_processed: int, config: Config, ckpt_name: str ):
-    folder = f'{config.run.out_prefix}_{TOTAL_TOKEN_BUDGET//1_000_000}mm_b{config.train.batch_size}'
+    folder = derive_runs_folder(config)
     os.makedirs(folder, exist_ok=True)
 
-    # construct path to ckpt file
+    # derive path to ckpt file
     out_path = os.path.join(folder, ckpt_name)
 
     sched_info = sched.as_dict()
@@ -82,7 +88,8 @@ def init_run_state(model, optimizer, config: Config, total_steps) -> tuple[int,i
     cpt = config.run.resume_from
     if cpt is not None:
         StatusTracker.log(f'Resuming from checkpoint {cpt}')
-        src = os.path.join(config.run.output_dir, cpt)        
+        output_dir = derive_runs_folder(config)
+        src = os.path.join(output_dir, cpt)        
         if not os.path.exists(src):
             raise Exception(f'Checkpoint not loaded - file does not exist: {src}')
         step, tokens_processed, sched_info = load_checkpoint(model, optimizer, src, config.run.device)
@@ -124,7 +131,7 @@ def train(cfg_path):
 
     start_step, tokens_processed, sched = init_run_state(llm, optim, config, total_steps)
     StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {TOTAL_TOKEN_BUDGET:_} ")
-    tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, sched.as_dict(), raw_cfg, config)
+    tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, sched.as_dict(), raw_cfg, config, llm.num_params)
 
     # infinite training loop (no worries it will break based on tokens_processed  ;)
     step, lr, grad_norm, loss = 0, 0, 0, 0
@@ -170,16 +177,16 @@ def train(cfg_path):
 
     # always print everything at the end and save last checkpoint
 
-    tracker.update(step, loss, lr, grad_norm, tokens_processed)
+    tracker.update(step, loss.item(), lr, grad_norm, tokens_processed) # type: ignore
 
     maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens)
 
     final_ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, f'final_ckpt_{step}.pt') # type: ignore
     tracker.update_checkpoint(step, final_ckpt_path)
 
-    tracker.finalize(final_ckpt_path)
+    tracker.finalize()
 
-    tracker.log(f"Training completed. Step count: {step}. Tokens processed: {tokens_processed:_}. Last loss: {loss:.4}. ") # type: ignore
+    tracker.log(f"Training completed: step={step}/tokens={tokens_processed:_}. ")
 
 
 def main(cfg_path = 'config/cs336_basic.yaml'):

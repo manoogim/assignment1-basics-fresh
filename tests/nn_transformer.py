@@ -31,6 +31,9 @@ class MyTransformer(nn.Module):
 
         self.lm_head = MyLinear(d_model, vocab_size, device, dtype)
 
+        # will be used for reporting only
+        self.num_params = sum(p.numel() for p in self.parameters())
+
     @classmethod
     def from_config(cls, dd: ModelConfig, device):
         return cls(dd.vocab_size, dd.num_layers, dd.seq_len, dd.d_model, dd.num_heads, dd.d_ff, device=device)

@@ -83,6 +83,7 @@ def load_yaml_config(cfg_path):
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
         raw['run']['device'] = resolve_device(raw['run']['device'])
+        raw['my_path'] = cfg_path
 
     return raw, Config(
         model=ModelConfig(**raw['model']),
