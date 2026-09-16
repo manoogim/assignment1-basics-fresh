@@ -46,7 +46,7 @@ run:
   wandb_enabled: true  # whether or not to log to wandb
 
 eval:
-  num_batches: 10      # how many batches to use for validation loss
+  num_batches: 50      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
   eval_every_steps: 20  # how often to evaluate validation loss
   target_loss: null      # break training loop when validation loss reaches this target
