@@ -2,23 +2,12 @@ import os
 
 import wandb
 
-#  this is to remind me to surface this summary for the purpose of metadata
-metadata_to_complete = {
-    "model": {
-        "architecture": "zzz",
-        "parameter_count": "zzz",
-    },
-    "data": {
-        "dataset_artifact": "zzz",
-        "dataset_version": "zzz",
-        "tokenizer": "MyBpeTokenizer",
-    },
-    "checkpoint": {
-        "format": "zzz",
-        "epoch": "zzz",
-        "tokens_seen_at_checkpoint": "323_764_224",
-    },
-}
+def build_metadata(wand_run):
+    summary = {key: value for key, value in wand_run.summary._as_dict().items() if not key.startswith("_") }
+    source = {'git sha': wand_run.settings.git_commit, 'git url': wand_run.settings.git_remote_url}
+    run = {'run_id': wand_run.id, 'run_name': wand_run.name, 'run_project': wand_run.project, 'run_path': wand_run.path}
+    metadata = {'run': run, 'source': source, 'summary' : summary}
+    return metadata
 
 def update_artifact_metadata(wand_run, rich_metadata):
     artifact = wand_run.Api().artifact("manoogim-personal/abla_batch_367/best_ckpt:v0")

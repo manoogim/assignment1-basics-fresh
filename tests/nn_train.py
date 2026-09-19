@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 import itertools
 import os
+import random
+import time
 
 import torch
 
@@ -60,11 +62,13 @@ def load_tokens(config: Config):
     return result['tokens_train.bin'], result['tokens_valid.bin']
 
 def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker: StatusTracker, validation_tokens):
+    start = time.perf_counter()
     threshold = config.run.ckpt_best_below
     val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
-    new_best_val = tracker.update_validation(step, val_loss, tokens_processed)
+    duration = time.perf_counter() - start
+    new_best_val = tracker.update_validation(step, val_loss, tokens_processed, duration)
 
-    safe_to_save = new_best_val is not None and new_best_val < threshold
+    safe_to_save = new_best_val is not None and (threshold is None or new_best_val < threshold)
     if safe_to_save:
         path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, 'best_ckpt.pt')
         tracker.update_checkpoint(step, path, True)
@@ -120,7 +124,8 @@ def is_cadence_hit (step, interval):
 def train(cfg_path):
     raw_cfg, config = load_yaml_config(cfg_path)
     torch.manual_seed(config.run.seed)
-    
+    random.seed(config.run.seed)
+
     training_tokens, validation_tokens = load_tokens(config)
 
     llm = build_model(config)
@@ -175,18 +180,17 @@ def train(cfg_path):
         if not keep_training:
             break   
 
-    # always print everything at the end and save last checkpoint
-
+    tracker.log('Training loop completed. Reporting final loss metrics, and computing final validation loss and uploading best artifact')
+    # always print everything at the end 
+    # since we are saving periodic checkpoints for the purpose of continuation in case of crash, and this is the end, there is no need to save the final checkpoint
     tracker.update(step, loss.item(), lr, grad_norm, tokens_processed) # type: ignore
 
+    # save best  checkpoint and upload artifact
+    # on the slim chance last step was the best this line would be repeating the same work: calc validation  loss, if best 
     maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens)
-
-    final_ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, f'final_ckpt_{step}.pt') # type: ignore
-    tracker.update_checkpoint(step, final_ckpt_path)
-
     tracker.finalize()
 
-    tracker.log(f"Training completed: step={step}/tokens={tokens_processed:_}. ")
+    tracker.log(f"Training completed: step={step} | tokens={tokens_processed:_}. ")
 
 
 def main(cfg_path = 'config/cs336_basic.yaml'):
