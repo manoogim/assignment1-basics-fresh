@@ -9,11 +9,11 @@ metric:
 parameters:
   peak_lr:
     values:
-      - 0.0001
-      - 0.0002
-      - 0.0003
-      - 0.0005
-      - 0.0008
+      - 0.0010
+      - 0.0013
+      - 0.0017
+      - 0.0022
+      - 0.0030
 
 command:
   - ${env}
@@ -22,4 +22,4 @@ command:
   - tests.nn_train
   - "--config=tests/config/abla_batch/cs336_kagle.yaml"
   - ${args}
-# wandb sweep --project sweep-lr-kaggle --entity manoogim-personal tests/config/sweep/sweep_kaggle_lr.yaml 
+# !uv run wandb sweep --project sweep-lr-kaggle --entity manoogim-personal tests/config/sweep/sweep_kaggle_lr.yaml 
