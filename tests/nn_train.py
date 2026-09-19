@@ -121,10 +121,7 @@ def is_cadence_hit (step, interval):
     result = (step > 0 )and( step % interval == 0)    
     return result
 
-def train(cfg_path):
-    raw_cfg, config = load_yaml_config(cfg_path)
-    torch.manual_seed(config.run.seed)
-    random.seed(config.run.seed)
+def train(raw_cfg, config):
 
     training_tokens, validation_tokens = load_tokens(config)
 
@@ -193,17 +190,23 @@ def train(cfg_path):
     tracker.log(f"Training completed: step={step} | tokens={tokens_processed:_}. ")
 
 
-def main(cfg_path = 'config/cs336_basic.yaml'):
-    StatusTracker.log(f'Using configuration file: {cfg_path}')
-    train(cfg_path)
+def main(args):
+    cfg_path = args.config
+    peak_lr = args.peak_lr
+    StatusTracker.log(f'Using configuration file: {cfg_path} with sweep param override peak_lr: {peak_lr}')
+    raw_cfg, config = load_yaml_config(cfg_path, peak_lr)
+    torch.manual_seed(config.run.seed)
+    random.seed(config.run.seed)
+    train(raw_cfg, config)
 
 if __name__ == '__main__':
     """
     Usage: 
-    python train.py --config tests/config/gpt2_tiny.yaml
+    python train.py -c tests/config/gpt2_tiny.yaml -plr 0.0003
     """
     parser = ArgumentParser(description="Train a transformer model.")
     parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file.')
+    parser.add_argument('-plr','--peak-lr', type=float, default=0.0002)
     args = parser.parse_args()
     
-    main(args.config)
+    main(args)

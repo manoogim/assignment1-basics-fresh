@@ -95,7 +95,7 @@ class StatusTracker:
                 self.wandb.define_metric(metric, summary="last")
                 self.wandb.define_metric(metric, summary="mean")
 
-            for metric in ['checkpoint', 'checkpoint_size_mb']:
+            for metric in ['checkpoint', 'checkpoint_size_mb', 'best_validation_loss.eval_time']:
                 self.wandb.define_metric(metric, summary="none") 
 
             self.wandb.summary.update ({'init': {"token_budget": total_token_budget, "total_steps": total_steps,"previous_tokens": tokens_processed, 'num_params': num_params}})
@@ -235,7 +235,7 @@ class StatusTracker:
 
 
 if __name__ == '__main__':
-    _, conf = load_yaml_config('tests/config/gpt2_tiny.yaml')
+    _, conf = load_yaml_config('tests/config/gpt2_tiny.yaml', 0.0001)
     active = conf.naming.active
     templ = conf.naming.templates[active]
     name = templ.format(config = conf)

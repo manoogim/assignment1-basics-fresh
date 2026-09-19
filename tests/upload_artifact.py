@@ -3,7 +3,7 @@ import os
 import wandb
 
 def build_metadata(wand_run):
-    summary = {key: value for key, value in wand_run.summary._as_dict().items() if not key.startswith("_") }
+    summary = {key: value for key, value in wand_run.summary._as_dict().items() if key.startswith(('init','final','best')) }
     source = {'git sha': wand_run.settings.git_commit, 'git url': wand_run.settings.git_remote_url}
     run = {'run_id': wand_run.id, 'run_name': wand_run.name, 'run_project': wand_run.project, 'run_path': wand_run.path}
     metadata = {'run': run, 'source': source, 'summary' : summary}

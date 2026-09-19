@@ -1,0 +1,33 @@
+# this will invoke training script as a module and pass peak lr as inputs (use it as a sanity check)
+python -m tests.nn_train -plr=0.0008
+
+# this will print sweep id and agent command:
+wandb sweep \
+  --project zzgpt2-tinysweep \
+  --entity manoogim-personal \
+  sweep_lr.yaml
+
+# this will start one agent, which will make 5 attempts to do the work
+wandb agent --count 5 \
+  manoogim-personal/zzgpt2-tinysweep/SWEEP_ID
+
+
+Only one agent process means:
+
+Train at one LR.
+Finish and release GPU memory.
+Start the next LR.
+Repeat until all five finish.
+Do not start a second agent process if you want strictly sequential execution.
+
+
+Keep these fixed for the first sweep:
+
+minrate: 1e-5
+warmup_frac: 0.02
+cosine_frac: 1
+total training tokens/steps
+batch size and seed
+
+After finding the best peak LR, 
+a useful second sweep would vary warmup_frac, for example [0.01, 0.02, 0.04]. I would not sweep minrate until peak LR and warmup are settled.
