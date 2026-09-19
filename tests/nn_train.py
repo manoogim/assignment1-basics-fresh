@@ -206,7 +206,7 @@ if __name__ == '__main__':
     """
     parser = ArgumentParser(description="Train a transformer model.")
     parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file.')
-    parser.add_argument('-plr','--peak-lr', type=float, default=0.0002)
+    parser.add_argument('-plr','--peak_lr', type=float, default=0.0002)
     args = parser.parse_args()
     
     main(args)
