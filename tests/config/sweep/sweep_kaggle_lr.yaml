@@ -18,8 +18,8 @@ parameters:
 command:
   - ${env}
   - ${interpreter}
-  - '-m'
-  - ${program}
-  - '--config=tests/config/abla_batch/cs336_kagle.yaml'
-  - '--peak_lr=${peak_lr}'
+  - "-m"
+  - tests.nn_train
+  - "--config=tests/config/abla_batch/cs336_kagle.yaml"
+  - ${args}
 # wandb sweep --project sweep-lr-kaggle --entity manoogim-personal tests/config/sweep/sweep_kaggle_lr.yaml 
