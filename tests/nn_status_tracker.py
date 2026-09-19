@@ -86,6 +86,7 @@ class StatusTracker:
         active = config.naming.active
         templ = config.naming.templates[active]
         run_name = templ.format(config = config)
+        self.log(f'Wandb project: {config.run.name} | Wandb name: {run_name}')
 
         if config.run.wandb_enabled:
             raw_cfg['schedule'] = sched_as_dict

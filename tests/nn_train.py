@@ -14,10 +14,23 @@ from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
 from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, derive_ckpt_name
 from tests.nn_yaml import Config, load_yaml_config
+from enum import Enum
 
-TOTAL_TOKEN_BUDGET = 327_680_000
-TOTAL_TOKEN_BUDGET = 70_000_000
-def calc_total_steps(batch_size: int, context_length: int, token_budget: int = TOTAL_TOKEN_BUDGET) -> int:
+TOTAL_TOKEN_BUDGET = -1
+class TokenBudget(Enum):
+    SMALL = 70_000_000
+    LARGE = 327_680_000
+
+    @classmethod
+    def from_arg(cls, arg: str) -> "TokenBudget":
+        a = arg.lower().strip()
+        if a in ("s", "small"):
+            return cls.SMALL
+        if a in ("l", "large"):
+            return cls.LARGE
+        raise ValueError(f"Invalid token budget: {arg}")
+
+def calc_total_steps(batch_size: int, context_length: int, token_budget: int) -> int:
     return token_budget // (batch_size * context_length)
 
 def derive_runs_folder(config: Config, token_budget: int = TOTAL_TOKEN_BUDGET):
@@ -121,8 +134,8 @@ def is_cadence_hit (step, interval):
     result = (step > 0 )and( step % interval == 0)    
     return result
 
-def train(raw_cfg, config):
-
+def train(raw_cfg, config, token_budget):
+    TOTAL_TOKEN_BUDGET = token_budget
     training_tokens, validation_tokens = load_tokens(config)
 
     llm = build_model(config)
@@ -193,11 +206,14 @@ def train(raw_cfg, config):
 def main(args):
     cfg_path = args.config
     peak_lr = args.peak_lr
-    StatusTracker.log(f'Using configuration file: {cfg_path} with sweep param override peak_lr: {peak_lr}')
+    token_budget = TokenBudget.from_arg(args.token_budget)
+    StatusTracker.log(f'Using configuration file: {cfg_path} with sweep param override peak_lr: {peak_lr}. Token budget: {token_budget}')
     raw_cfg, config = load_yaml_config(cfg_path, peak_lr)
+
     torch.manual_seed(config.run.seed)
     random.seed(config.run.seed)
-    train(raw_cfg, config)
+
+    train(raw_cfg, config, token_budget.value)
 
 if __name__ == '__main__':
     """
@@ -206,7 +222,9 @@ if __name__ == '__main__':
     """
     parser = ArgumentParser(description="Train a transformer model.")
     parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file.')
-    parser.add_argument('-plr','--peak_lr', type=float, default=0.0002)
+    parser.add_argument('-plr','--peak_lr', type=float, default=0.0003, help='Max learning rate before cosine annealing')
+    parser.add_argument('-tb', '--token_budget', type=str, default='small', help="Token budget: 's'/'small' or 'l'/'large'"
+)
     args = parser.parse_args()
     
     main(args)
