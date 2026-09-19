@@ -37,7 +37,7 @@ run:
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 29
   name: 'zztinykagle'     # name of the run, used for logging and saving checkpoints 
-  output_dir: 'runs/zz_40mm'
+  out_prefix: 'runs/zz_40mm'
   save_every_steps: 20  # how often to save checkpoints stats
   log_every_steps: 20   # how often to log stats
   keep_last_ckpts: 4   # will keep this many files on disk
