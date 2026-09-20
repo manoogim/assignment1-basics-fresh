@@ -7,7 +7,7 @@ metric:
   goal: minimize
 
 parameters:
-  seed2:
+  seed:
     values: [11, 47]
 
 
