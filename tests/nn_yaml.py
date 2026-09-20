@@ -79,17 +79,30 @@ class Config(NamedTuple):
     gen: GenConfig
     naming: NamingConfig
     
-def load_yaml_config(cfg_path, peak_lr, warmup_frac):
+def load_yaml_config(cfg_path, args):
+    override_token_budget = args.token_budget
+    override_peak_lr = args.peak_lr
+    override_warmup_frac = args.warmup_frac
+    override_seed = args.seed
+
+    msg = (f'$$$ Using configuration file: {cfg_path} with sweep param overrides peak_lr: {override_peak_lr}, warmup_frac: {override_warmup_frac}, seed={override_seed}, Token budget: {override_token_budget}')
+    print(msg)
+
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
-        raw['run']['device'] = resolve_device(raw['run']['device'])
-        raw['my_path'] = cfg_path
+    raw['run']['device'] = resolve_device(raw['run']['device'])
+    raw['my_path'] = cfg_path
 
-        # overrider peak learning rate
-        raw['optimizer']['lr'] = peak_lr
-        raw['scheduler']['maxrate'] = peak_lr
+    # overrider peak learning rate
+    if override_peak_lr is not None:
+        raw['optimizer']['lr'] = override_peak_lr
+        raw['scheduler']['maxrate'] = override_peak_lr
 
-        raw['scheduler']['warmup_frac'] = warmup_frac
+    if override_warmup_frac is not None:
+        raw['scheduler']['warmup_frac'] = override_warmup_frac
+
+    if override_seed is not None:
+        raw['run']['seed'] = override_seed
 
     return raw, Config(
         model=ModelConfig(**raw['model']),

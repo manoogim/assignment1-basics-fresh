@@ -1,5 +1,5 @@
 program: tests/nn_train.py
-name: gpt2-tiny-seed-grid
+name: kaggle-lr-grid
 method: grid
 
 metric:
@@ -10,12 +10,12 @@ parameters:
   seed2:
     values: [11, 47]
 
+
 command:
   - ${env}
   - ${interpreter}
   - "-m"
   - tests.nn_train
-  - "--config=tests/config/gpt2_tiny.yaml"
+  - "--config=tests/config/abla_batch/cs336_kagle.yaml"
   - ${args}
-
-# uv run wandb sweep --project zzsweep-seed --entity manoogim-personal tests/config/sweep/sweep_zz.yaml 
+# !uv run wandb sweep --project sweep-lr-kaggle --entity manoogim-personal tests/config/sweep/sweep_kaggle_lr.yaml 

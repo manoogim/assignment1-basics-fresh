@@ -204,12 +204,8 @@ def train(raw_cfg, config, token_budget):
 
 
 def main(args):
-    cfg_path = args.config
-    peak_lr = args.peak_lr
-    warmup_frac = args.warmup_frac
     token_budget = TokenBudget.from_arg(args.token_budget)
-    StatusTracker.log(f'Using configuration file: {cfg_path} with sweep param override peak_lr: {peak_lr}, warmup_frac: {warmup_frac}. Token budget: {token_budget}')
-    raw_cfg, config = load_yaml_config(cfg_path, peak_lr, warmup_frac)
+    raw_cfg, config = load_yaml_config(args.config, args)
 
     torch.manual_seed(config.run.seed)
     random.seed(config.run.seed)
@@ -223,9 +219,10 @@ if __name__ == '__main__':
     """
     parser = ArgumentParser(description="Train a transformer model.")
     parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file.')
-    parser.add_argument('-plr','--peak_lr', type=float, default=0.0003, help='Max learning rate before cosine annealing')
+    parser.add_argument('-plr','--peak_lr', type=float, help='Max learning rate before cosine annealing')
     parser.add_argument('-tb', '--token_budget', type=str, default='small', help="Token budget: 's'/'small' or 'l'/'large'")
-    parser.add_argument('-wf', '--warmup_frac', type=float, default=0.07, help="Warmup frac of cosine annealing")
+    parser.add_argument('-wf', '--warmup_frac', type=float, help="Warmup frac of cosine annealing")
+    parser.add_argument('-s', '--seed', type=int, help="Prime number to control randomness")
     
     args = parser.parse_args()
     
