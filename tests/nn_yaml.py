@@ -79,7 +79,7 @@ class Config(NamedTuple):
     gen: GenConfig
     naming: NamingConfig
     
-def load_yaml_config(cfg_path, peak_lr):
+def load_yaml_config(cfg_path, peak_lr, warmup_frac):
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
         raw['run']['device'] = resolve_device(raw['run']['device'])
@@ -88,6 +88,8 @@ def load_yaml_config(cfg_path, peak_lr):
         # overrider peak learning rate
         raw['optimizer']['lr'] = peak_lr
         raw['scheduler']['maxrate'] = peak_lr
+
+        raw['scheduler']['warmup_frac'] = warmup_frac
 
     return raw, Config(
         model=ModelConfig(**raw['model']),

@@ -1,0 +1,21 @@
+program: tests/nn_train.py
+name: gpt2-tiny-lr-grid
+method: grid
+
+metric:
+  name: best_validation_loss.validation_loss
+  goal: minimize
+
+parameters:
+  scheduler.warmup_frac:
+    values: [0.06, 0.10, 0.12]
+
+command:
+  - ${env}
+  - ${interpreter}
+  - '-m'
+  - tests.nn_train
+  - '--warmup_frac=${scheduler.warmup_frac}'
+  - '--config=tests/config/gpt2_tiny.yaml'
+
+# uv run wandb sweep --project zzsweep-warmup-grid --entity manoogim-personal tests/config/sweep/sweep_zz.yaml 

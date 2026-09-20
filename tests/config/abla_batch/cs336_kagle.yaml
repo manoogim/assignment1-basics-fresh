@@ -8,7 +8,7 @@ model:
 
 optimizer:
   type: adamw
-  lr: 3.e-4
+  lr: 0.0050
   weight_decay: 0.1
   betas: [0.9, 0.95]
   eps: 1.e-8
@@ -22,10 +22,10 @@ train:
 
 scheduler:
   type: "cosine"
-  warmup_frac: 0.08       # e.g. 2% of total steps spent warming up
-  cosine_frac: 0.93       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
+  warmup_frac: 0.08       # e.g. 8% of total steps spent warming up
+  cosine_frac: 1.0       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
   minrate: 1.0e-5
-  maxrate: 3.0e-4
+  maxrate: 0.0050
 
 data:
   tokens_folder:    '/kaggle/input/datasets/melissamanoog/tinystories-gpt4-tar-1-09-gb/tinystories_GPT4'

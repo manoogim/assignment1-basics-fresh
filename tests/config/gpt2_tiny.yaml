@@ -8,7 +8,7 @@ model:
 
 optimizer:
   type: "adamw"
-  lr: 3.e-4
+  lr: 0.0050
   weight_decay: 0.1
   betas: [0.9, 0.95]
   eps: 1.e-8
@@ -24,7 +24,7 @@ scheduler:
   warmup_frac: 0.02     # e.g. 2% of total steps spent warming up
   cosine_frac: 1.0     # leaves the last 5% of steps as flat alphamin 
   minrate: 1.0e-5
-  maxrate: 3.0e-4
+  maxrate: 0.0050
 
 data:
   tokens_folder: 'out/tinystories_GPT4'
