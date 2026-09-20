@@ -7,6 +7,8 @@ metric:
   goal: minimize
 
 parameters:
+  peak_lr:
+    values: [0.004, 0.006]
   seed:
     values: [11, 47]
 
@@ -18,4 +20,4 @@ command:
   - tests.nn_train
   - "--config=tests/config/abla_batch/cs336_kagle.yaml"
   - ${args}
-# !uv run wandb sweep --project sweep-lr-kaggle --entity manoogim-personal tests/config/sweep/sweep_kaggle_lr.yaml 
+# !uv run wandb sweep --project sweep-lr-kaggle --entity manoogim-personal tests/config/sweep/sweep_kaggle_seed.yaml 

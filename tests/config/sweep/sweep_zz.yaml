@@ -7,8 +7,10 @@ metric:
   goal: minimize
 
 parameters:
-  seed2:
-    values: [11, 47]
+  peak_lr:
+    values: [0.004, 0.006]
+  seed:
+    values: [11, 37]
 
 command:
   - ${env}
