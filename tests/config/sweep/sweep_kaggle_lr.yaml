@@ -9,9 +9,8 @@ metric:
 parameters:
   peak_lr:
     values:
-      - 0.0040
       - 0.0050
-      - 0.0070
+      - 0.0060
 
 
 command:
