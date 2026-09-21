@@ -1,22 +1,23 @@
-program: tests/nn_train.py
-name: kaggle-warmup-grid
+# sweep-warmup.yaml
+name: lr-warmup-grid-seed29
 method: grid
 
 metric:
-  name: best_validation_loss.validation_loss
+  name: validation.validation_loss
   goal: minimize
 
 parameters:
-  scheduler.warmup_frac:
-    values: [0.06, 0.10, 0.12]
-
+  peak_lr:
+    values: [0.006]
+  warmup_frac:
+    values: [0.04, 0.12]
+  seed:
+    value: 29
 
 command:
   - ${env}
   - ${interpreter}
-  - '-m'
+  - "-m"
   - tests.nn_train
-  - '--warmup_frac=${scheduler.warmup_frac}'
-  - '--config=tests/config/abla_batch/cs336_kagle.yaml'
+  - "--config=tests/config/abla_batch/cs336_kagle.yaml"
   - ${args}
-# !uv run wandb sweep --project sweep-warmup-grid --entity manoogim-personal tests/config/sweep/sweep_kaggle_warmup.yaml 

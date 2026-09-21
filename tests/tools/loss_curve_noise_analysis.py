@@ -30,12 +30,12 @@ Usage (as a library):
 """
 
 import argparse
+import csv
 import itertools
 import sys
 from dataclasses import dataclass
 
 import numpy as np
-import pandas as pd
 
 try:
     from scipy.stats import norm
@@ -50,23 +50,48 @@ except ImportError:
 
 def load_wandb_csv(path):
     """
-    Load a W&B CSV export. Keeps only the main value column per run (drops
-    the __MIN / __MAX shadow columns W&B adds when a run is grouped).
+    Load a W&B CSV export using only the stdlib csv module (no pandas).
+    Keeps only the main value column per run (drops the __MIN / __MAX
+    shadow columns W&B adds when a run is grouped).
 
     Returns: dict of {run_name: (steps: np.ndarray, values: np.ndarray)}
-    Rows with NaN in a given run's column are dropped for that run only.
+    Rows with a missing/blank/non-numeric value in a given run's column are
+    dropped for that run only (matches pandas' dropna behavior).
     """
-    df = pd.read_csv(path)
-    if "Step" not in df.columns:
-        raise ValueError("Expected a 'Step' column in the CSV.")
+    with open(path, newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        if "Step" not in fieldnames:
+            raise ValueError("Expected a 'Step' column in the CSV.")
 
-    value_cols = [c for c in df.columns if not (c.endswith("__MIN") or c.endswith("__MAX")) and c != "Step"]
+        value_cols = [c for c in fieldnames
+                      if c != "Step" and not (c.endswith("__MIN") or c.endswith("__MAX"))]
+
+        raw = {col: {"steps": [], "values": []} for col in value_cols}
+        for row in reader:
+            step_raw = row.get("Step", "")
+            if step_raw in (None, ""):
+                continue
+            try:
+                step = float(step_raw)
+            except ValueError:
+                continue
+            for col in value_cols:
+                v_raw = row.get(col, "")
+                if v_raw in (None, ""):
+                    continue
+                try:
+                    v = float(v_raw)
+                except ValueError:
+                    continue
+                raw[col]["steps"].append(step)
+                raw[col]["values"].append(v)
 
     runs = {}
     for col in value_cols:
         name = col.split(" - ")[0].strip()
-        sub = df[["Step", col]].dropna()
-        runs[name] = (sub["Step"].to_numpy(dtype=float), sub[col].to_numpy(dtype=float))
+        runs[name] = (np.array(raw[col]["steps"], dtype=float),
+                      np.array(raw[col]["values"], dtype=float))
     return runs
 
 
@@ -149,7 +174,7 @@ def tail_stats(steps, values, tail_start_step=None, tail_frac=0.15, name="run",
         name=name,
         n_points=n,
         mean=float(v.mean()),
-        std=(float(v.std(ddof=1)) if n >= 2 else None),
+        std=(float(v.std(ddof=1)) if n >= 2 else None), # type: ignore
         min=float(v.min()),
         min_step=float(s[np.argmin(v)]),
         fallback_used=fallback_used,
@@ -218,17 +243,19 @@ def crossing_check(runs_ordered):
     Zero inversions confirms a clean, non-crossing sweep.
     """
     names = [r[0] for r in runs_ordered]
-    common_steps = None
-    aligned = []
+    # build step -> value lookup dicts (pandas-free stand-in for a Series)
+    lookups = []
+    step_sets = []
     for name, steps, values in runs_ordered:
-        s = pd.Series(values, index=steps)
-        aligned.append(s)
-        common_steps = s.index if common_steps is None else common_steps.intersection(s.index)
+        d = {float(s): float(v) for s, v in zip(steps, values)}
+        lookups.append(d)
+        step_sets.append(set(d.keys()))
 
-    common_steps = sorted(common_steps)
+    common_steps = sorted(set.intersection(*step_sets)) if step_sets else []
+
     inversions = []
     for step in common_steps:
-        row = [s.loc[step] for s in aligned]
+        row = [lookups[k][step] for k in range(len(lookups))]
         for i, j in itertools.combinations(range(len(row)), 2):
             if row[i] > row[j]:
                 inversions.append((step, names[i], names[j]))
@@ -318,7 +345,7 @@ def print_threshold_report(report):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("csv_paths", nargs="+", help="One or more W&B CSV exports")
+    ap.add_argument("csv_paths", nargs="+",help="One or more W&B CSV exports")
     ap.add_argument("--tail-start-step", type=float, default=None,
                     help="Absolute step where the schedule has flattened (e.g. anneal floor)")
     ap.add_argument("--tail-frac", type=float, default=0.15,
@@ -371,5 +398,15 @@ def main():
             print_threshold_report(threshold_report(st, args.threshold))
 
 
+
 if __name__ == "__main__":
+    sys.argv = [
+        "program_name",   # argv[0] is ignored by argparse
+        r"C:\Users\Melissa\Downloads\wandb_export_2026-09-20T20_39_07.191-04_00.csv",
+        "--tail-start-step", "1800",
+        "--tail-frac", "0.15",
+        "--threshold", "1.45",
+    ]
+
     sys.exit(main())
+
