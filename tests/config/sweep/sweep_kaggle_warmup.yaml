@@ -8,11 +8,11 @@ metric:
 
 parameters:
   peak_lr:
-    values: [0.005,0.006]
+    value: 0.005
   warmup_frac:
-    value: 0.12
+    value: 0.08
   seed:
-    values: [11,47]
+    values: [11, 29, 47]
 
 command:
   - ${env}
