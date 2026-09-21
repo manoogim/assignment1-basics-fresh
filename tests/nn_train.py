@@ -223,6 +223,7 @@ if __name__ == '__main__':
     parser.add_argument('-tb', '--token_budget', type=str, default='small', help="Token budget: 's'/'small' or 'l'/'large'")
     parser.add_argument('-wf', '--warmup_frac', type=float, help="Warmup frac of cosine annealing")
     parser.add_argument('-s', '--seed', type=int, help="Prime number to control randomness")
+    parser.add_argument('-wd', '--weight_decay', type=int, help="Optimizers weight decay factor")
     
     args = parser.parse_args()
     

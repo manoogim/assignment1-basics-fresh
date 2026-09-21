@@ -84,9 +84,15 @@ def load_yaml_config(cfg_path, args):
     override_peak_lr = args.peak_lr
     override_warmup_frac = args.warmup_frac
     override_seed = args.seed
+    override_weight_decay = args.weight_decay
 
-    msg = (f'$$$ Using configuration file: {cfg_path} with sweep param overrides peak_lr: {override_peak_lr}, warmup_frac: {override_warmup_frac}, seed={override_seed}, Token budget: {override_token_budget}')
-    print(msg)
+    msg = f"""
+$$$ Using configuration file: {cfg_path}
+    Sweep overrides → Token budget: {override_token_budget}, peak_lr: {override_peak_lr}
+    warmup_frac: {override_warmup_frac}, seed: {override_seed}, weight_decay: {override_weight_decay}
+"""
+    print(msg.strip())
+
 
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
@@ -103,6 +109,9 @@ def load_yaml_config(cfg_path, args):
 
     if override_seed is not None:
         raw['run']['seed'] = override_seed
+
+    if override_weight_decay is not None:
+        raw['optimizer']['weight_decay'] = override_weight_decay
 
     return raw, Config(
         model=ModelConfig(**raw['model']),
