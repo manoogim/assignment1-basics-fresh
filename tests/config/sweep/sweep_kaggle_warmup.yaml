@@ -8,7 +8,7 @@ metric:
 
 parameters:
   peak_lr:
-    values: [0.006]
+    values: [0.005]
   warmup_frac:
     values: [0.04, 0.12]
   seed:

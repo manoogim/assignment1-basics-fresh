@@ -52,7 +52,6 @@ class BestValidationLoss(NamedTuple):
     step: int | None
     tokens_processed: int
     elapsed_seconds: float
-    eval_time: float
 
     def render(self) -> str:
         return (
@@ -60,7 +59,6 @@ class BestValidationLoss(NamedTuple):
             f"ppl: {safe_ppl(self.validation_loss):.2f} |"
             f"Tokens: {self.tokens_processed:_} | "
             f"elapsed_seconds: {self.elapsed_seconds} |"
-            f"eval_time: {self.eval_time}"
         )
 
 class StatusTracker:
@@ -75,12 +73,12 @@ class StatusTracker:
         self.min_loss = float('inf')
 
         # everything about the best validation point, tracked together
-        self.best_val = BestValidationLoss(float('inf'), None, 0, 0.0, 0.0)
+        self.best_val = BestValidationLoss(float('inf'), None, 0, 0.0)
         self.best_ckpt_path = None
+        self.eval_time = 0.0
  
         # last values seen by update(), for the final run summary
         self.last_update = None
-
 
         # each run is named according to the active name template
         active = config.naming.active
@@ -182,12 +180,13 @@ class StatusTracker:
         # tracking best loss for reporting at end
         val_ppl = safe_ppl(val_loss)
         new_best = None
+        self.eval_time += duration
         if val_loss < self.best_val.validation_loss:
             new_best = val_loss
             elapsed = time.time() - self.start_time
-            self.best_val = BestValidationLoss(val_loss, step, tokens_processed_lifetime, elapsed, duration)
+            self.best_val = BestValidationLoss(val_loss, step, tokens_processed_lifetime, elapsed)
  
-        print(f"[{step}] Validation Loss: {val_loss:.4f} | Min val loss: {self.best_val.validation_loss:.4f} | Tokens: {tokens_processed_lifetime:_} | ppl: {val_ppl:.2f} | Eval time: {fmt_hms(duration)}")
+        print(f"[{step}] Validation Loss: {val_loss:.4f} | Min val loss: {self.best_val.validation_loss:.4f} | Tokens: {tokens_processed_lifetime:_} | ppl: {val_ppl:.2f} | Eval time: {fmt_hms(self.eval_time)}")
 
         if self.wandb is not None:
             self.wandb.log({'validation': {
@@ -195,7 +194,7 @@ class StatusTracker:
                 "validation_loss": val_loss,
                 "tokens_processed":tokens_processed_lifetime,
                 "validation_perplexity": val_ppl,
-                "eval_time": duration
+                "eval_time": self.eval_time
             }}, step=step)
 
         return new_best
