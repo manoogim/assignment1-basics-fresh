@@ -9,7 +9,7 @@ def build_metadata(wand_run):
     metadata = {'run': run, 'source': source, 'summary' : summary}
     return metadata
 
-def update_artifact_metadata(wand_run, rich_metadata):
+def zzupdate_artifact_metadata(wand_run, rich_metadata):
     artifact = wand_run.Api().artifact("manoogim-personal/abla_batch_367/best_ckpt:v0")
     artifact.metadata = rich_metadata
     artifact.description = "Best checkpoint selected by minimum validation loss."
