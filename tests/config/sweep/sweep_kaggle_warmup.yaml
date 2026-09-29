@@ -7,12 +7,14 @@ metric:
   goal: minimize
 
 parameters:
+  seed:
+    value: 29
   peak_lr:
     value: 0.006
   warmup_frac:
     value: 0.12
   weight_decay:
-    values: [0.0, 0.01, 0.03, 0.3]
+    values: [0.01, 0.03, 0.3]
 
 command:
   - ${env}
