@@ -7,6 +7,7 @@ from typing import NamedTuple, Optional
 
 class TokenBudget(Enum):
     SMALL = 70_000_000
+    MEDIUM = 90_000_000
     LARGE = 327_680_000
 
     @classmethod
@@ -14,9 +15,12 @@ class TokenBudget(Enum):
         a = arg.lower().strip()
         if a in ("s", "small"):
             return cls.SMALL
-        if a in ("l", "large"):
+        elif a in ('m', 'medium'):
+            return cls.MEDIUM
+        elif a in ("l", "large"):
             return cls.LARGE
-        raise ValueError(f"Invalid token budget: {arg}")
+        else:
+            raise ValueError(f"Invalid token budget: {arg}")
     
 class ModelConfig(NamedTuple):
     vocab_size: int

@@ -73,5 +73,6 @@ def report_peek_memory(label: str, d: ModelConfig, num_bytes: int = 4, avail_mem
     )
 
 if __name__ == "__main__":
-    _, cfg = load_yaml_config('tests/config/cs336_basic.yaml')
-    report_peek_memory("cs336_basic", cfg.model, num_bytes=4, avail_mem=26_000_000_000, batch_size=cfg.train.batch_size)
+    mc = ModelConfig(10_000, 256, 512, 1344, 4, 16)
+    np = calc_model_params(mc)
+    print(f'Model params: {np:_}')
