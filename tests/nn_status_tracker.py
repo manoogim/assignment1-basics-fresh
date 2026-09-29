@@ -62,10 +62,10 @@ class BestValidationLoss(NamedTuple):
         )
 
 class StatusTracker:
-    def __init__(self, tokens_processed, total_token_budget, total_steps, sched_as_dict, raw_cfg, config: Config, num_params):
+    def __init__(self, tokens_processed, total_steps, sched_as_dict, raw_cfg, config: Config, num_params):
 
         self.initial_tokens_processed = tokens_processed
-        self.total_token_budget = total_token_budget
+        self.total_token_budget = config.token_budget
         self.avg_window = config.run.avg_window
 
         self.loss_history = []
@@ -80,16 +80,16 @@ class StatusTracker:
         # last values seen by update(), for the final run summary
         self.last_update = None
 
-        # each run is named according to the active name template
-        active = config.naming.active
-        templ = config.naming.templates[active]
-        run_name = templ.format(config = config)
-        self.log(f'Wandb project: {config.run.name} | Wandb name: {run_name}')
-
-        if config.run.wandb_enabled:
+        if config.wandb.enabled:
             raw_cfg['schedule'] = sched_as_dict
 
-            self.wandb = wandb.init(project=config.run.name, name=run_name, config=raw_cfg)
+            # each run is named according to the active name template
+            active = config.wandb.active
+            templ = config.wandb.name_templates[active]
+            run_name = templ.format(config = config)
+            self.log(f'Wandb project: {config.wandb.proj_name} | Wandb name: {run_name}')
+
+            self.wandb = wandb.init(project=config.wandb.proj_name, name=run_name, config=raw_cfg, tags=config.wandb.tags)
             for metric in ("stats.loss", "stats.perplexity"):
                 self.wandb.define_metric(metric, summary="last")
                 self.wandb.define_metric(metric, summary="mean")
@@ -97,7 +97,7 @@ class StatusTracker:
             for metric in ['checkpoint', 'checkpoint_size_mb', 'best_validation_loss.eval_time']:
                 self.wandb.define_metric(metric, summary="none") 
 
-            self.wandb.summary.update ({'init': {"token_budget": total_token_budget, "total_steps": total_steps,"previous_tokens": tokens_processed, 'num_params': num_params}})
+            self.wandb.summary.update ({'init': {"token_budget": config.token_budget, "total_steps": total_steps,"previous_tokens": tokens_processed, 'num_params': num_params}})
         else:
             self.wandb = None
 
@@ -132,16 +132,9 @@ class StatusTracker:
         else:
             window_throughput = run_throughput
         # ETA
-        
         remaining_tokens = (self.total_token_budget - tokens_processed_lifetime)
         eta_seconds = remaining_tokens / window_throughput
 
-        # print(f"[{step}] loss={loss:.4f} | min_loss={self.min_loss:.4f} | ppl={perplexity:.2f} ")
-        # print(f"      lr={lr:.8f} grad_norm={grad_norm:.4f}")
-        # print(f"      throughput={run_throughput:.1f} tokens/sec" )
-        # print(f"      tokens_processed={tokens_processed_lifetime:_} | tokens_remaining={remaining_tokens:_} | eta_seconds={eta_seconds:_}")
-        # print(f"      elapsed={fmt_hms(run_time)} eta={fmt_hms(eta_seconds)}")
-        # print(f"      rss={self._rss():.2f}GB")
 
         # remember for the final run summary / metadata and print periodic status
         self.last_update = LastUpdate(step=step, time=now, loss=loss, min_window_loss=self.min_loss,
@@ -149,14 +142,6 @@ class StatusTracker:
                                       runtime_seconds=run_time, eta_seconds=eta_seconds, lr = lr, grad_norm=grad_norm, rss_gb=self._rss())
         upd_msg = self.last_update.render()
         print(upd_msg)
-        # self.last_update = {
-        #     'step': step,
-        #     'loss': loss,
-        #     'perplexity': perplexity,
-        #     'tokens_processed': tokens_processed_lifetime,
-        #     'throughput_tokens_per_second': run_throughput,
-        #     'runtime_seconds': run_time,
-        # }
        
         if self.wandb is not None:
             self.wandb.log({'stats': self.last_update.as_dict()}, step=step)
@@ -236,8 +221,8 @@ class StatusTracker:
 
 if __name__ == '__main__':
     _, conf = load_yaml_config('tests/config/gpt2_tiny.yaml', 0.0001)
-    active = conf.naming.active
-    templ = conf.naming.templates[active]
+    active = conf.wandb.active
+    templ = conf.wandb.name_templates[active]
     name = templ.format(config = conf)
     print(f'name: {name}')
     

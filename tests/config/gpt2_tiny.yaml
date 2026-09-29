@@ -35,20 +35,19 @@ run:
   num_steps_dbg: 25
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 17
-  name: 'zzgpt2-tiny-sweep'     # name of the run, used for logging and saving checkpoints
+  # name: 'zzgpt2-tiny-sweep'     # name of the run, used for logging and saving checkpoints
   out_prefix: 'runs/zzgpt2-tiny-tinystories'
-  save_every_steps: 2
+  save_every_steps: 5
     # how often to save checkpoints and print stats
   log_every_steps: 2   # how often to log stats
   keep_last_ckpts: 2   # will keep this many files on disk
   resume_from: null     # do not resume from any checkpt but start frpom 0
   avg_window: 100       # for computing running avg loss 
-  wandb_enabled: true  # whether or not to log to wandb
 
 eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
-  eval_every_steps: 4  # how often to evaluate validation loss
+  eval_every_steps: 2  # how often to evaluate validation loss
   target_loss: null
   
 gen:
@@ -60,8 +59,11 @@ gen:
     special_tokens: ['<|endoftext|>']
     model_weights_path: 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\runs\\gpt2-tiny-tinystories\\ckpt_4.pt'
 
-naming:
+wandb:
+  enabled: True
+  proj_name: 'zzgpt2-tiny-sweep'
+  tags: None
   active: plain
-  templates:
-    seeded: '{config.run.name}{config.run.seed}_{config.train.batch_size}'
-    plain: '{config.run.name}run'
+  name_templates:
+    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
+    plain: '{config.wandb.proj_name}run'

@@ -14,27 +14,12 @@ from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
 from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, derive_ckpt_name
 from tests.nn_yaml import Config, load_yaml_config
-from enum import Enum
-
-TOTAL_TOKEN_BUDGET = -1
-class TokenBudget(Enum):
-    SMALL = 70_000_000
-    LARGE = 327_680_000
-
-    @classmethod
-    def from_arg(cls, arg: str) -> "TokenBudget":
-        a = arg.lower().strip()
-        if a in ("s", "small"):
-            return cls.SMALL
-        if a in ("l", "large"):
-            return cls.LARGE
-        raise ValueError(f"Invalid token budget: {arg}")
 
 def calc_total_steps(batch_size: int, context_length: int, token_budget: int) -> int:
     return token_budget // (batch_size * context_length)
 
-def derive_runs_folder(config: Config, token_budget: int = TOTAL_TOKEN_BUDGET):
-    folder = f'{config.run.out_prefix}_{token_budget//1_000_000}mm_b{config.train.batch_size}'
+def derive_runs_folder(config: Config):
+    folder = f'{config.run.out_prefix}_{config.token_budget//1_000_000}mm_b{config.train.batch_size}'
     return folder
 
 def build_model(config):
@@ -134,20 +119,20 @@ def is_cadence_hit (step, interval):
     result = (step > 0 )and( step % interval == 0)    
     return result
 
-def train(raw_cfg, config, token_budget):
-    TOTAL_TOKEN_BUDGET = token_budget
-    training_tokens, validation_tokens = load_tokens(config)
+def train(raw_cfg, config):
 
     llm = build_model(config)
 
     optim = build_optimizer(llm.parameters(), config)
 
-    total_steps = calc_total_steps(config.train.batch_size, config.model.seq_len, TOTAL_TOKEN_BUDGET)
+    total_steps = calc_total_steps(config.train.batch_size, config.model.seq_len, config.token_budget)
 
     start_step, tokens_processed, sched = init_run_state(llm, optim, config, total_steps)
-    StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {TOTAL_TOKEN_BUDGET:_} ")
-    tracker = StatusTracker(tokens_processed, TOTAL_TOKEN_BUDGET, total_steps, sched.as_dict(), raw_cfg, config, llm.num_params)
+    StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {config.token_budget:_} ")
+    tracker = StatusTracker(tokens_processed, total_steps, sched.as_dict(), raw_cfg, config, llm.num_params)
 
+    training_tokens, validation_tokens = load_tokens(config)
+    
     # infinite training loop (no worries it will break based on tokens_processed  ;)
     step, lr, grad_norm, loss = 0, 0, 0, 0
     keep_training = True
@@ -180,8 +165,8 @@ def train(raw_cfg, config, token_budget):
             ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, ckpt_name)
             tracker.update_checkpoint(step, ckpt_path)
 
-        if tokens_processed >= TOTAL_TOKEN_BUDGET:
-            StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {TOTAL_TOKEN_BUDGET:_}. Now training stops!')
+        if tokens_processed >= config.token_budget:
+            StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {config.token_budget:_}. Now training stops!')
             keep_training = False
 
         if config.run.num_steps_dbg is not None and step >= config.run.num_steps_dbg:
@@ -204,13 +189,12 @@ def train(raw_cfg, config, token_budget):
 
 
 def main(args):
-    token_budget = TokenBudget.from_arg(args.token_budget)
     raw_cfg, config = load_yaml_config(args.config, args)
 
     torch.manual_seed(config.run.seed)
     random.seed(config.run.seed)
 
-    train(raw_cfg, config, token_budget.value)
+    train(raw_cfg, config)
 
 if __name__ == '__main__':
     """
@@ -219,6 +203,7 @@ if __name__ == '__main__':
     """
     parser = ArgumentParser(description="Train a transformer model.")
     parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file.')
+    parser.add_argument('-wandbt', '--wandb_tags', type=str, default='')
     parser.add_argument('-plr','--peak_lr', type=float, help='Max learning rate before cosine annealing')
     parser.add_argument('-tb', '--token_budget', type=str, default='small', help="Token budget: 's'/'small' or 'l'/'large'")
     parser.add_argument('-wf', '--warmup_frac', type=float, help="Warmup frac of cosine annealing")

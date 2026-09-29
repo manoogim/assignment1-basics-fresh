@@ -14,7 +14,7 @@ parameters:
   warmup_frac:
     value: 0.12
   weight_decay:
-    values: [0.01, 0.03, 0.3]
+    value: 0.1
 
 command:
   - ${env}

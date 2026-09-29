@@ -7,11 +7,13 @@ metric:
 
 parameters:
   peak_lr:
-    values: [0.006]
+    value: 0.006
   warmup_frac:
-    values: [0.04, 0.12]
-  seed:
-    value: 29
+    value: 0.12
+  weight_decay:
+    values: [0.0, 0.01, 0.03, 0.3]
+  wandb_tags:
+    value: 'weight_decay-sweep,wd-screen'
 
 command:
   - ${env}

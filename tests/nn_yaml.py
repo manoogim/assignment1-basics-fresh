@@ -1,8 +1,23 @@
+from enum import Enum
+
 import torch
 import yaml
 
 from typing import NamedTuple, Optional
 
+class TokenBudget(Enum):
+    SMALL = 70_000_000
+    LARGE = 327_680_000
+
+    @classmethod
+    def from_arg(cls, arg: str) -> "TokenBudget":
+        a = arg.lower().strip()
+        if a in ("s", "small"):
+            return cls.SMALL
+        if a in ("l", "large"):
+            return cls.LARGE
+        raise ValueError(f"Invalid token budget: {arg}")
+    
 class ModelConfig(NamedTuple):
     vocab_size: int
     seq_len: int
@@ -40,14 +55,12 @@ class RunConfig(NamedTuple):
     num_steps_dbg: int              # meant for dev purposes, keep it null in prod
     device: str                     # auto | cuda | cpu | mps
     seed: int
-    name: str
     out_prefix: str
     save_every_steps: int
     log_every_steps: int
     keep_last_ckpts: int            # keep under 27.. suffix will be a letter a-z
     resume_from: Optional[str]
     avg_window: int
-    wandb_enabled: bool
 
 class EvalConfig(NamedTuple):
     num_batches: int
@@ -64,11 +77,15 @@ class GenConfig(NamedTuple):
     special_tokens: list[str]
     model_weights_path: str
 
-class NamingConfig(NamedTuple):
+class WandbConfig(NamedTuple):
+    enabled: bool
+    proj_name: str
+    tags: str | None
     active: str
-    templates: dict
+    name_templates: dict
 
 class Config(NamedTuple):
+    token_budget: int
     model: ModelConfig
     optimizer: OptimizerConfig
     train: TrainConfig
@@ -77,9 +94,12 @@ class Config(NamedTuple):
     run: RunConfig
     eval: EvalConfig
     gen: GenConfig
-    naming: NamingConfig
+    wandb: WandbConfig
     
 def load_yaml_config(cfg_path, args):
+        
+    xtra_tags =  [tag.strip() for tag in args.wandb_tags.split(",") if tag.strip() ]
+
     override_token_budget = args.token_budget
     override_peak_lr = args.peak_lr
     override_warmup_frac = args.warmup_frac
@@ -88,6 +108,7 @@ def load_yaml_config(cfg_path, args):
 
     msg = f"""
 $$$ Using configuration file: {cfg_path}
+    Sweep tags: {xtra_tags}
     Sweep overrides → Token budget: {override_token_budget}, peak_lr: {override_peak_lr}
     warmup_frac: {override_warmup_frac}, seed: {override_seed}, weight_decay: {override_weight_decay}
 """
@@ -98,6 +119,7 @@ $$$ Using configuration file: {cfg_path}
         raw = yaml.safe_load(f)
     raw['run']['device'] = resolve_device(raw['run']['device'])
     raw['my_path'] = cfg_path
+    raw['wandb']['tags'] = xtra_tags
 
     # overrider peak learning rate
     if override_peak_lr is not None:
@@ -114,6 +136,7 @@ $$$ Using configuration file: {cfg_path}
         raw['optimizer']['weight_decay'] = override_weight_decay
 
     return raw, Config(
+        token_budget=TokenBudget.from_arg(override_token_budget).value,
         model=ModelConfig(**raw['model']),
         optimizer=OptimizerConfig(**raw['optimizer']),
         train=TrainConfig(**raw['train']),
@@ -122,7 +145,7 @@ $$$ Using configuration file: {cfg_path}
         run=RunConfig(**raw['run']),
         eval=EvalConfig(**raw['eval']),
         gen = GenConfig(**raw['gen']),
-        naming = NamingConfig(**raw['naming'])
+        wandb = WandbConfig(**raw['wandb'])
     )
 
 def resolve_device(requested: str) -> str:
@@ -133,8 +156,3 @@ def resolve_device(requested: str) -> str:
     if torch.backends.mps.is_available():
         return 'mps'
     return 'cpu'
-
-if __name__ == "__main__":
-    cfg_path = "tests/config/gpt2_tiny.yaml"
-    config = load_yaml_config(cfg_path)
-    print(config)
