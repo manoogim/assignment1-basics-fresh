@@ -12,7 +12,7 @@ from tests.nn_loader import get_batch, load_checkpoint, save_checkpoint
 from tests.nn_scheduler import MyScheduler
 from tests.nn_status_tracker import StatusTracker
 from tests.nn_transformer import MyTransformer
-from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, derive_ckpt_name
+from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, derive_ckpt_name, plant_seed
 from tests.nn_yaml import Config, load_yaml_config
 
 def calc_total_steps(batch_size: int, context_length: int, token_budget: int) -> int:
@@ -26,9 +26,8 @@ def build_model(config):
     model = MyTransformer.from_config(config.model, config.run.device)
     model.train()
     StatusTracker.log(f'Created transformer model from: {config.model}')
-    if config.run.device == 'cuda':
-        model.compile()
-        StatusTracker.log(f"Model compiled. Resolved device: {config.run.device}, CUDA available: {torch.cuda.is_available()}")
+    model.compile()
+    StatusTracker.log(f"Model compiled. Resolved device: {config.run.device}, CUDA available: {torch.cuda.is_available()}")
     return model
 
 def build_optimizer(params, config: Config):
@@ -62,9 +61,9 @@ def load_tokens(config: Config):
 def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker: StatusTracker, validation_tokens):
     start = time.perf_counter()
     threshold = config.run.ckpt_best_below
-    val_loss = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.run.device)
+    val_result, _ = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.eval.eval_seed, config.run.device)
     duration = time.perf_counter() - start
-    new_best_val = tracker.update_validation(step, val_loss, tokens_processed, duration)
+    new_best_val = tracker.update_validation(step, val_result, tokens_processed, duration)
 
     safe_to_save = new_best_val is not None and (threshold is None or new_best_val < threshold)
     if safe_to_save:
@@ -73,6 +72,9 @@ def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker: 
     return new_best_val
 
 def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, iteration, tokens_processed: int, config: Config, ckpt_name: str ):
+    # validation of cpt suffix to ensure cpt will have a valid file name
+    assert config.run.keep_last_ckpts <= 26, f'Numer of saved checkpoints cannot exceed 26, but got: {config.run.keep_last_ckpts}'
+
     folder = derive_runs_folder(config)
     os.makedirs(folder, exist_ok=True)
 
@@ -85,8 +87,6 @@ def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MySche
     return out_path
 
 def init_run_state(model, optimizer, config: Config, total_steps) -> tuple[int,int,MyScheduler]:
-    # validation of cpt suffix to ensure cpt will have a valid file name
-    assert config.run.keep_last_ckpts <= 26, f'Numer of saved checkpoints cannot exceed 26, but got: {config.run.keep_last_ckpts}'
     cpt = config.run.resume_from
     if cpt is not None:
         StatusTracker.log(f'Resuming from checkpoint {cpt}')
@@ -119,7 +119,7 @@ def is_cadence_hit (step, interval):
     result = (step > 0 )and( step % interval == 0)    
     return result
 
-def train(raw_cfg, config):
+def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
     llm = build_model(config)
 
@@ -138,7 +138,7 @@ def train(raw_cfg, config):
     keep_training = True
     for step in itertools.count(start_step):
 
-        input_tokens, output_tokens = get_batch(training_tokens, config.train.batch_size, config.model.seq_len, config.run.device)
+        input_tokens, output_tokens = get_batch(training_tokens, config.train.batch_size, config.model.seq_len, training_generator, config.run.device)
         tokens_processed += input_tokens.numel()
 
         optim.zero_grad()
@@ -190,11 +190,8 @@ def train(raw_cfg, config):
 
 def main(args):
     raw_cfg, config = load_yaml_config(args.config, args)
-
-    torch.manual_seed(config.run.seed)
-    random.seed(config.run.seed)
-
-    train(raw_cfg, config)
+    training_generator = plant_seed(config.run.seed)
+    train(raw_cfg, config, training_generator)
 
 if __name__ == '__main__':
     """

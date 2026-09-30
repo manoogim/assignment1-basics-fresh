@@ -1,13 +1,13 @@
 model:
-  vocab_size: 10000
-  seq_len: 256          # size for precomuted RoPE cache, and max context length for training
-  d_model: 256          # hidden size (tiny)
-  d_ff: 1024            # 4× d_model (standard GPT2 ratio)
-  num_layers: 4         # fewer transformer blocks
-  num_heads: 4          # must divide d_model cleanly
+  vocab_size: 10_000
+  seq_len: 256
+  d_model: 512
+  d_ff: 1344
+  num_layers: 4
+  num_heads: 16
 
 optimizer:
-  type: "adamw"
+  type: adamw
   lr: 0.0050
   weight_decay: 0.1
   betas: [0.9, 0.95]
@@ -49,6 +49,8 @@ eval:
   batch_size: 16       # batch size for validation
   eval_every_steps: 2  # how often to evaluate validation loss
   target_loss: null
+  best_ckpt: null
+  eval_seed: 12345
   
 gen:
     temp: 0.5

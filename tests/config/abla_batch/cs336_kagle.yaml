@@ -48,7 +48,9 @@ eval:
   batch_size: 16       # batch size for validation
   eval_every_steps: 20  # how often to evaluate validation loss
   target_loss: null      # break training loop when validation loss reaches this target
-
+  best_ckpt: null
+  eval_seed: 12345
+  
 gen:
   temp: null
   top_k: null

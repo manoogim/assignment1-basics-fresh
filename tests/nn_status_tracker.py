@@ -5,14 +5,9 @@ from typing import NamedTuple
 import psutil
 import wandb
 
+from tests.nn_utils import compute_safe_ppl
 from tests.nn_yaml import Config, load_yaml_config
 from tests.upload_artifact import build_metadata, upload_artifact
-
-def safe_ppl(loss):
-    try:
-        return math.exp(loss)
-    except OverflowError:
-        return float('inf')
 
 def fmt_hms( seconds):
     if seconds <= 0:
@@ -39,7 +34,7 @@ class LastUpdate(NamedTuple):
     
     def render(self) -> str:
         return (
-            f"[{self.step}] loss={self.loss:.4f} | min_loss={self.min_window_loss:.4f} | ppl={safe_ppl(self.loss):.2f}\n"
+            f"[{self.step}] loss={self.loss:.4f} | min_loss={self.min_window_loss:.4f} | ppl={compute_safe_ppl(self.loss):.2f}\n"
             f"      lr={self.lr:.8f} grad_norm={self.grad_norm:.4f}\n"
             f"      throughput={self.throughput_tokens_per_second:.1f} tokens/sec\n"
             f"      tokens_processed={self.tokens_processed:_}\n"
@@ -161,9 +156,9 @@ class StatusTracker:
                 "checkpoint_size_mb": size_mb
             }, step=step)
 
-    def update_validation(self, step, val_loss, tokens_processed_lifetime, duration):
+    def update_validation(self, step, val_result, tokens_processed_lifetime, duration):
+        val_loss, val_ppl = val_result['val_loss'], val_result['val_ppl']
         # tracking best loss for reporting at end
-        val_ppl = safe_ppl(val_loss)
         new_best = None
         self.eval_time += duration
         if val_loss < self.best_val.validation_loss:
@@ -183,6 +178,12 @@ class StatusTracker:
             }}, step=step)
 
         return new_best
+
+    def update_robust_validation(self, eval_result, duration):
+        msg = f'robust_eval: {eval_result}, duration: {duration}'
+        self.log(msg)
+        if self.wandb is not None:
+            self.wandb.summary.update({"robust_eval": eval_result })
 
     def finalize(self):
         """

@@ -9,7 +9,7 @@ from jaxtyping import Int
 from torch import nn
 
 
-def get_batch(x, batch_size, ctx_len, device=None) -> Tuple[Int[torch.Tensor, 'batch_size ctx_len'], Int[torch.Tensor, 'batch_size ctx_len']]:
+def get_batch(x, batch_size, ctx_len, g: torch.Generator = None, device=None) -> Tuple[Int[torch.Tensor, 'batch_size ctx_len'], Int[torch.Tensor, 'batch_size ctx_len']]:
     max_start = len(x) - ctx_len - 1
     if max_start < 0:
         raise ValueError(f'Not enough elements: {len(x)} cannot support matrix {batch_size} x {ctx_len}')
@@ -17,7 +17,14 @@ def get_batch(x, batch_size, ctx_len, device=None) -> Tuple[Int[torch.Tensor, 'b
     inputs = []
     outputs = []
     for _ in range(batch_size):
-        start = random.randint(0, max_start)
+        # use torch.randint instead of random.randint
+        start = torch.randint(
+            low=0,
+            high=max_start,
+            size=(1,),
+            generator=g
+        ).item()
+        
         # total segment to consume - note adding 1 to accommodate shift by one place for outputs
         ids = x[start : start + ctx_len + 1]
         inputs.append(ids[:-1])

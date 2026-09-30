@@ -11,7 +11,7 @@ class TokenBudget(Enum):
     LARGE = 327_680_000
 
     @classmethod
-    def from_arg(cls, arg: str) -> "TokenBudget":
+    def from_arg(cls, arg: str ) -> "TokenBudget":
         a = arg.lower().strip()
         if a in ("s", "small"):
             return cls.SMALL
@@ -71,6 +71,8 @@ class EvalConfig(NamedTuple):
     batch_size: int
     eval_every_steps: int
     target_loss: float
+    best_ckpt: str
+    eval_seed: int
 
 class GenConfig(NamedTuple):
     temp: float
@@ -101,20 +103,33 @@ class Config(NamedTuple):
     wandb: WandbConfig
     
 def load_yaml_config(cfg_path, args):
-        
-    xtra_tags =  [tag.strip() for tag in args.wandb_tags.split(",") if tag.strip() ]
+    """
+    This loads config objects from yaml, and combines with optional overrides.
+    Names of overrideable params are combined from training workflow and eval workflow
+    """    
+    wandb_tags_raw = getattr(args, "wandb_tags", None)
+    override_token_budget = getattr(args, "token_budget", None)
+    override_peak_lr = getattr(args, "peak_lr", None)
+    override_warmup_frac = getattr(args, "warmup_frac", None)
+    override_seed = getattr(args, "seed", None)
+    override_weight_decay = getattr(args, "weight_decay", None)
 
-    override_token_budget = args.token_budget
-    override_peak_lr = args.peak_lr
-    override_warmup_frac = args.warmup_frac
-    override_seed = args.seed
-    override_weight_decay = args.weight_decay
+    override_num_batches = getattr(args, 'num_batches', None)
+    override_best_ckpt = getattr(args, 'best_path', None)
+    override_eval_seed = getattr(args, 'eval_seed', None)
+
+    xtra_tags = (
+        [tag.strip() for tag in wandb_tags_raw.split(",") if tag.strip()]
+        if wandb_tags_raw
+        else []
+    )
 
     msg = f"""
 $$$ Using configuration file: {cfg_path}
     Sweep tags: {xtra_tags}
     Sweep overrides → Token budget: {override_token_budget}, peak_lr: {override_peak_lr}
-    warmup_frac: {override_warmup_frac}, seed: {override_seed}, weight_decay: {override_weight_decay}
+    warmup_frac: {override_warmup_frac}, seed: {override_seed}, weight_decay: {override_weight_decay},
+    num_batches: {override_num_batches}, best_ckpt: {override_best_ckpt}, eval_seed: {override_eval_seed}
 """
     print(msg.strip())
 
@@ -139,8 +154,17 @@ $$$ Using configuration file: {cfg_path}
     if override_weight_decay is not None:
         raw['optimizer']['weight_decay'] = override_weight_decay
 
+    if override_num_batches is not None:
+        raw['eval']['num_batches'] = override_num_batches
+
+    if override_best_ckpt is not None:
+        raw['eval']['best_ckpt'] = override_best_ckpt
+
+    if override_eval_seed is not None:
+        raw['eval']['eval_seed'] = override_eval_seed
+        
     return raw, Config(
-        token_budget=TokenBudget.from_arg(override_token_budget).value,
+        token_budget=TokenBudget.from_arg(override_token_budget).value, # type: ignore
         model=ModelConfig(**raw['model']),
         optimizer=OptimizerConfig(**raw['optimizer']),
         train=TrainConfig(**raw['train']),

@@ -1,7 +1,9 @@
 from collections.abc import Iterable
 import math
+import random
 
 from einops import einsum, rearrange
+import numpy as np
 import torch
 from torch import Tensor
 from jaxtyping import Float, Int
@@ -85,7 +87,7 @@ def cross_entropy_loss_slow(
     result = total_loss / nn  # scalar tensor with grad_fn
     return result # type: ignore
 
-def cross_entropy(inputs: Float[Tensor, " batch_size vocab_size"], targets: Int[Tensor, " batch_size"]):
+def cross_entropy(inputs: Float[Tensor, " batch_size vocab_size"], targets: Int[Tensor, " batch_size"], reduction: str = 'mean'):
     """Given a tensor of inputs and targets, compute the average cross-entropy loss across examples.
 
     Args:
@@ -100,7 +102,12 @@ def cross_entropy(inputs: Float[Tensor, " batch_size vocab_size"], targets: Int[
     log_probs = torch.log_softmax(inputs, dim=-1)
     rows = torch.arange(len(targets)) # this is 0,1,2, ... NN-1
     loss = -log_probs[rows, targets]  # shape: [batch_size]
-    return loss.mean()  # scalar with NllLoss-like backward
+    if reduction == 'mean':
+        return loss.mean()  # scalar with NllLoss-like backward
+    elif reduction == 'sum':
+        return loss.sum()
+    else:
+        return loss
 
 def get_lr_cosine_sched(t, alphamax, alphamin, tw, tc):
     """
@@ -139,6 +146,12 @@ def clip_gradient(params: Iterable[torch.nn.Parameter], maxgrad, eps = 1e-6):
     return l2.item()
 
 
+def compute_safe_ppl(loss):
+    try:
+        return math.exp(loss)
+    except OverflowError:
+        return float('inf')
+
 def compute_loss(model, input_tokens, output_tokens):
     logits = model(input_tokens)
     logits = rearrange(logits, 'b c d -> (b c) d')
@@ -146,18 +159,61 @@ def compute_loss(model, input_tokens, output_tokens):
     result = cross_entropy(logits, output_tokens)
     return result
 
-def calc_validation_loss(model, validation_tokens, eval_batch_size, seq_size, num_eval_batches=20, device=None):
+def compute_loss_sum(model, input_tokens, output_tokens):
+    logits = model(input_tokens)
+    logits = rearrange(logits, "b c d -> (b c) d")
+    targets = rearrange(output_tokens, "b c -> (b c)")
+
+    loss_sum = cross_entropy(
+        logits,
+        targets,
+        reduction="sum",
+    )
+
+    return loss_sum, targets.numel()
+
+def calc_validation_loss(model, validation_tokens, eval_batch_size, seq_size, num_eval_batches, eval_seed, device=None):
+    if num_eval_batches <= 0:
+        raise ValueError("num_eval_batches must be positive")
+
+    g = torch.Generator()
+    g.manual_seed(eval_seed)
+
+    was_training = model.training
     model.eval()
+
+    total_loss = 0.0
+    total_tokens = 0
+    eval_batches = 0
+    eval_sequences = 0
+    batch_losses = []
     try:
-        losses = []
-        with torch.no_grad():
+        with torch.inference_mode():
             for _ in range(num_eval_batches):
-                input_tokens, output_tokens = get_batch(validation_tokens, eval_batch_size, seq_size, device)
-                loss = compute_loss(model, input_tokens, output_tokens)
-                losses.append(loss.item())
-        return sum(losses) / len(losses)
+                input_tokens, output_tokens = get_batch(validation_tokens, eval_batch_size, seq_size, g, device)
+                loss_sum, valid_tokens = compute_loss_sum(model, input_tokens, output_tokens)
+                batch_losses.append(loss_sum.item() / valid_tokens)
+
+                # accounting
+                total_loss += loss_sum.item()
+                eval_batches += 1
+                total_tokens += valid_tokens
+                eval_sequences += input_tokens.shape[0]
+        val_loss = total_loss / total_tokens
+        batch_loss_std = np.std(batch_losses, ddof=1)
+        batch_loss_se = batch_loss_std / np.sqrt(len(batch_losses) )
+        result = {}
+        result['val_loss'] = val_loss
+        result['val_ppl'] = compute_safe_ppl(val_loss)
+        result['eval_batches'] = eval_batches # this is known from input
+        result['eval_tokens'] = total_tokens
+        result['eval_sequences'] = eval_sequences
+        result['batch_loss_mean'] = float(np.mean(batch_losses))
+        result['batch_loss_std'] = float(batch_loss_std)
+        result['batch_loss_se'] = float(batch_loss_se)
+        return result, batch_losses
     finally:
-        model.train()
+        model.train(was_training)
 
 def silu(x: Float[Tensor, "d_model d_ff"]) -> Float[Tensor, "d_model d_ff"]:
     result = x * torch.sigmoid(x)
@@ -175,3 +231,10 @@ def derive_ckpt_name(step, save_every_steps, keep_last):
     suffix = chr(ord('a') + slot)
     return f'ckpt_{suffix}{off}.pt'
 
+def plant_seed (seed):
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    g = torch.Generator()
+    g.manual_seed(seed)
+    return g

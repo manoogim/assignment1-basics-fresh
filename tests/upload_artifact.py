@@ -48,7 +48,24 @@ def upload_best_ckpt():
     with wandb.init(entity=entity, project=wandb_project) as wandb_run:
         upload_artifact(wandb_run, wandb_artifact_name,  metadata, local_artifact_path, artifact_type=artifact_type)
     
+def download_artifact():
+    run = wandb.init(
+    entity="manoogim-personal",
+    project="sweep-lr-kaggle",
+    job_type="robust-evaluation",
+    # config={
+    #     "checkpoint_artifact": "best_ckpt:v29",
+    #     "source_run_id": "v1f3z7ne",
+    #     "evaluation_seed": 0,
+    #     "max_batches": None,
+    # },
+)
+
+    artifact = run.use_artifact( "manoogim-personal/sweep-lr-kaggle/best_ckpt:v14", type="model",)
+    checkpoint_path = artifact.download() + "/best_ckpt.pt"
+    return checkpoint_path
 
 if __name__ == '__main__':
-    upload_dataset()
+    cpp = download_artifact()
+    print(f'Downloaded artifact: {cpp}')
 
