@@ -62,9 +62,9 @@ gen:
 
 wandb:
   enabled: True
-  proj_name: 'abla_batch'
+  proj_name: 'tokens115m-seed29-recovery-rerun'
   tags: None
-  active: seeded
+  active: plain
   name_templates:
     seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
     plain: '{config.wandb.proj_name}run'

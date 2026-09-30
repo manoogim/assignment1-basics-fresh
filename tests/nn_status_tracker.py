@@ -44,6 +44,7 @@ class LastUpdate(NamedTuple):
 
 class BestValidationLoss(NamedTuple):
     validation_loss: float
+    val_ppl: float
     step: int | None
     tokens_processed: int
     elapsed_seconds: float
@@ -51,7 +52,7 @@ class BestValidationLoss(NamedTuple):
     def render(self) -> str:
         return (
             f"[{self.step}] Validation Loss: {self.validation_loss:.4f} | "
-            f"ppl: {safe_ppl(self.validation_loss):.2f} |"
+            f"ppl: {self.val_ppl:.2f} |"
             f"Tokens: {self.tokens_processed:_} | "
             f"elapsed_seconds: {self.elapsed_seconds} |"
         )
@@ -68,7 +69,7 @@ class StatusTracker:
         self.min_loss = float('inf')
 
         # everything about the best validation point, tracked together
-        self.best_val = BestValidationLoss(float('inf'), None, 0, 0.0)
+        self.best_val = BestValidationLoss(float('inf'), float('inf'), None, 0, 0.0)
         self.best_ckpt_path = None
         self.eval_time = 0.0
  
@@ -164,7 +165,7 @@ class StatusTracker:
         if val_loss < self.best_val.validation_loss:
             new_best = val_loss
             elapsed = time.time() - self.start_time
-            self.best_val = BestValidationLoss(val_loss, step, tokens_processed_lifetime, elapsed)
+            self.best_val = BestValidationLoss(val_loss, val_ppl, step, tokens_processed_lifetime, elapsed)
  
         print(f"[{step}] Validation Loss: {val_loss:.4f} | Min val loss: {self.best_val.validation_loss:.4f} | Tokens: {tokens_processed_lifetime:_} | ppl: {val_ppl:.2f} | Eval time: {fmt_hms(self.eval_time)}")
 
@@ -178,12 +179,6 @@ class StatusTracker:
             }}, step=step)
 
         return new_best
-
-    def update_robust_validation(self, eval_result, duration):
-        msg = f'robust_eval: {eval_result}, duration: {duration}'
-        self.log(msg)
-        if self.wandb is not None:
-            self.wandb.summary.update({"robust_eval": eval_result })
 
     def finalize(self):
         """
