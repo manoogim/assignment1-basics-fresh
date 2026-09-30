@@ -50,7 +50,7 @@ eval:
   eval_every_steps: 2  # how often to evaluate validation loss
   target_loss: null
   best_ckpt: null
-  eval_seed: 12345
+  eval_seed: 54321
   
 gen:
     temp: 0.5

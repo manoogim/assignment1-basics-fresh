@@ -7,7 +7,7 @@ from typing import NamedTuple, Optional
 
 class TokenBudget(Enum):
     SMALL = 70_000_000
-    MEDIUM = 90_000_000
+    MEDIUM = 115_000_000
     LARGE = 327_680_000
 
     @classmethod
@@ -162,7 +162,7 @@ $$$ Using configuration file: {cfg_path}
 
     if override_eval_seed is not None:
         raw['eval']['eval_seed'] = override_eval_seed
-        
+
     return raw, Config(
         token_budget=TokenBudget.from_arg(override_token_budget).value, # type: ignore
         model=ModelConfig(**raw['model']),

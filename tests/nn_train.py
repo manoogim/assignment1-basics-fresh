@@ -26,8 +26,9 @@ def build_model(config):
     model = MyTransformer.from_config(config.model, config.run.device)
     model.train()
     StatusTracker.log(f'Created transformer model from: {config.model}')
-    model.compile()
-    StatusTracker.log(f"Model compiled. Resolved device: {config.run.device}, CUDA available: {torch.cuda.is_available()}")
+    if config.run.device == 'cuda':
+        model.compile()
+        StatusTracker.log(f"Model compiled. Resolved device: {config.run.device}, CUDA available: {torch.cuda.is_available()}")
     return model
 
 def build_optimizer(params, config: Config):
@@ -202,7 +203,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file.')
     parser.add_argument('-wandbt', '--wandb_tags', type=str, default='')
     parser.add_argument('-plr','--peak_lr', type=float, help='Max learning rate before cosine annealing')
-    parser.add_argument('-tb', '--token_budget', type=str, default='small', help="Token budget: 's'/'small' or 'l'/'large'")
+    parser.add_argument('-tb', '--token_budget', type=str, default='medium', help="Token budget: 's'/'small' or 'l'/'large'")
     parser.add_argument('-wf', '--warmup_frac', type=float, help="Warmup frac of cosine annealing")
     parser.add_argument('-s', '--seed', type=int, help="Prime number to control randomness")
     parser.add_argument('-wd', '--weight_decay', type=float, help="Optimizers weight decay factor")

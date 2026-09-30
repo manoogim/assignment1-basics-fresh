@@ -49,8 +49,8 @@ eval:
   eval_every_steps: 20  # how often to evaluate validation loss
   target_loss: null      # break training loop when validation loss reaches this target
   best_ckpt: null
-  eval_seed: 12345
-  
+  eval_seed: 54321
+
 gen:
   temp: null
   top_k: null
