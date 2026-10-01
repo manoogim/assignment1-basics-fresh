@@ -1,0 +1,19 @@
+# sweep-warmup.yaml
+name: lr-warmup-grid-seed29
+method: grid
+
+metric:
+  name: validation.validation_loss
+  goal: minimize
+
+parameters:
+  wandb_tags:
+    value: baseline
+
+command:
+  - ${env}
+  - ${interpreter}
+  - "-m"
+  - tests.nn_train
+  - "--config=tests/config/abla_norm/cs336_temp.yaml"
+  - ${args}

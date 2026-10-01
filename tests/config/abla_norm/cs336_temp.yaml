@@ -67,7 +67,7 @@ gen:
 wandb:
   enabled: True
   proj_name: ablate-norm
-  tags: [baseline, normed]
+  tags: [normed]
   active: normed
   name_templates:
     seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
