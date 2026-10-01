@@ -11,7 +11,7 @@ parameters:
     values: 'none'
   
   wandb_tags:
-    value: baseline
+    value: sans_norm
 
 command:
   - ${env}
