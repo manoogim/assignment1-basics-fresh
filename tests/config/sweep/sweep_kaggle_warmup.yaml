@@ -10,7 +10,7 @@ parameters:
   token_budget:
     value: 'medium'
   seed:
-    value: 29
+    values: [11,47]
   peak_lr:
     value: 0.0055
   warmup_frac:

@@ -211,6 +211,17 @@ class StatusTracker:
             upload_artifact(self.wandb, 'best_ckpt', ckpt_path, metadata=metadata, artifact_type='model')
             self.log('Upload complete.')
 
+    def upload_milestone_artifact(self, ckpt_path, step):
+        if self.wandb is not None:
+            self.log(f'Start uploading milestone weights to wandb.')
+            metadata = {
+                'step': step,
+                'last_val_loss': self.best_val.validation_loss
+            }
+            artifact_name = f'milestone_{step}'
+            upload_artifact(self.wandb, artifact_name, ckpt_path, metadata, 'model')
+            self.log(f'Uploaded milestone at step {step}')
+
     def _rss(self):
         return psutil.Process(os.getpid()).memory_info().rss / (1024**3)
 

@@ -42,10 +42,10 @@ def compare_paired(candidate_losses, baseline_losses):
     }
 
 
+path30 = 'artifacts/best_ckpt-v30/batch_losses.npy' 
 path29 = 'artifacts/best_ckpt-v29/batch_losses.npy' 
-path14 = 'artifacts/best_ckpt-v14/batch_losses.npy' 
 
-result = compare_paired(candidate_losses=np.load(path29), baseline_losses=np.load(path14))
-print(f'*** Paired comparison between candidate: {path29} and baseline: {path14} ***')
+result = compare_paired(candidate_losses=np.load(path30), baseline_losses=np.load(path29))
+print(f'*** Paired comparison between candidate: {path30} and baseline: {path29} ***')
 for key, value in result.items():
     print(f"{key}: {value}")

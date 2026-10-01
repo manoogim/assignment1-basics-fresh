@@ -62,7 +62,7 @@ gen:
 
 wandb:
   enabled: True
-  proj_name: 'tokens115m-seed29-recovery-rerun'
+  proj_name: 'tokens115m-seeds-confirm'
   tags: None
   active: plain
   name_templates:
