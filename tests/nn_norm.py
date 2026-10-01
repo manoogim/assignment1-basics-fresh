@@ -16,7 +16,7 @@ class MyRmsNorm(nn.Module):
         self.d_model = d_model
         w = torch.ones(d_model, device=device, dtype=dtype)
         self.gamma = nn.Parameter(w)
-
+  
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Process an input tensor of shape (batch_size, sequence_length, d_model) and return a tensor of the same shape.

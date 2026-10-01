@@ -18,10 +18,6 @@ from tests.nn_yaml import Config, load_yaml_config
 def calc_total_steps(batch_size: int, context_length: int, token_budget: int) -> int:
     return token_budget // (batch_size * context_length)
 
-def derive_runs_folder(config: Config):
-    folder = f'{config.run.out_prefix}_{config.token_budget//1_000_000}mm_b{config.train.batch_size}'
-    return folder
-
 def build_model(config):
     model = MyTransformer.from_config(config.model, config.run.device)
     model.train()
@@ -76,11 +72,10 @@ def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MySche
     # validation of cpt suffix to ensure cpt will have a valid file name
     assert config.run.keep_last_ckpts <= 26, f'Numer of saved checkpoints cannot exceed 26, but got: {config.run.keep_last_ckpts}'
 
-    folder = derive_runs_folder(config)
-    os.makedirs(folder, exist_ok=True)
+    os.makedirs(config.dict['runs_folder'], exist_ok=True)
 
     # derive path to ckpt file
-    out_path = os.path.join(folder, ckpt_name)
+    out_path = os.path.join(config.dict['runs_folder'], ckpt_name)
 
     sched_info = sched.as_dict()
     sched_info['batch_size'] = config.train.batch_size
@@ -91,7 +86,7 @@ def init_run_state(model, optimizer, config: Config, total_steps) -> tuple[int,i
     cpt = config.run.resume_from
     if cpt is not None:
         StatusTracker.log(f'Resuming from checkpoint {cpt}')
-        output_dir = derive_runs_folder(config)
+        output_dir = config.dict['runs_folder']
         src = os.path.join(output_dir, cpt)        
         if not os.path.exists(src):
             raise Exception(f'Checkpoint not loaded - file does not exist: {src}')
@@ -129,9 +124,10 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
     total_steps = calc_total_steps(config.train.batch_size, config.model.seq_len, config.token_budget)
 
     start_step, tokens_processed, sched = init_run_state(llm, optim, config, total_steps)
-    StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {config.token_budget:_} ")
-    tracker = StatusTracker(tokens_processed, total_steps, sched.as_dict(), raw_cfg, config, llm.num_params)
 
+    StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {config.token_budget:_}, runs folder: {config.dict['runs_folder']} ")
+    tracker = StatusTracker(tokens_processed, total_steps, sched.as_dict(), raw_cfg, config, llm.num_params)
+    
     training_tokens, validation_tokens = load_tokens(config)
     
     # infinite training loop (no worries it will break based on tokens_processed  ;)
@@ -203,7 +199,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file.')
     parser.add_argument('-wandbt', '--wandb_tags', type=str, default='')
     parser.add_argument('-plr','--peak_lr', type=float, help='Max learning rate before cosine annealing')
-    parser.add_argument('-tb', '--token_budget', type=str, default='medium', help="Token budget: 's'/'small' or 'l'/'large'")
+    parser.add_argument('-tb', '--token_budget', type=str, default='extra-small', help="Token budget: 'xs'/'extra-small' or 's'/'small' or 'l'/'large' or 'm'/'medium'")
     parser.add_argument('-wf', '--warmup_frac', type=float, help="Warmup frac of cosine annealing")
     parser.add_argument('-s', '--seed', type=int, help="Prime number to control randomness")
     parser.add_argument('-wd', '--weight_decay', type=float, help="Optimizers weight decay factor")

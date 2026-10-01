@@ -61,7 +61,7 @@ def download_artifact():
     # },
 )
 
-    artifact = run.use_artifact( "manoogim-personal/sweep-lr-kaggle/best_ckpt:v30", type="model",)
+    artifact = run.use_artifact( "manoogim-personal/sweep-lr-kaggle/best_ckpt:v31", type="model",)
     checkpoint_path = artifact.download() + "/best_ckpt.pt"
     return checkpoint_path
 

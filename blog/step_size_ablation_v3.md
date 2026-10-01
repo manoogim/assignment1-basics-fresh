@@ -76,7 +76,7 @@ memory; 136 was the largest batch size I could actually fit.)*
 
 ## Finding 1: fewer steps costs you, smoothly and predictably
 
-![Best validation loss vs. total steps](step_vs_loss.png)
+![Best validation loss vs. total steps](step_budget_vs_best_loss.png)
 
 *The x-axis is on a log scale — each gridline is a fixed multiplicative jump
 (1,000 → 2,000 → 5,000 → 10,000 → 20,000) rather than a fixed additive one.

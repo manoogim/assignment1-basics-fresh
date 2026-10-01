@@ -3,6 +3,7 @@ from torch import nn
 from tests.nn_mhsa import MultiHeadSelfAttention, MultiheadSelfattentionRoped
 from tests.nn_norm import MyRmsNorm
 from tests.nn_swiglu import MySwiglu
+from tests.nn_yaml import make_norm
 
 """
     Inputs:
@@ -13,16 +14,18 @@ from tests.nn_swiglu import MySwiglu
 class MyTransformerBlock(nn.Module):
     def __init__(self, d_model: int, num_heads: int, d_ff: int,
                  max_seq_len: int,
+                 norm: dict,
                  eps: float = 0.00001, 
                  theta: float = 10_000,
                  
                  device = None, dtype = None):
         super().__init__()
-        self.rms_norm1 = MyRmsNorm(d_model, eps, device, dtype)
+
+        self.rms_norm1 = make_norm(d_model, norm, "attn", device=device, dtype=dtype)
         # self.mha = MultiHeadSelfAttention(d_model, num_heads, device, dtype)
         self.mha = MultiheadSelfattentionRoped(d_model, num_heads, theta, max_seq_len, device, dtype)
 
-        self.rms_norm2 = MyRmsNorm(d_model, eps, device, dtype)
+        self.rms_norm2 = make_norm(d_model, norm, "ffn", device=device, dtype=dtype)
         self.ff_block = MySwiglu(d_model, d_ff, device, dtype)
         
 

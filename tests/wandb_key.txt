@@ -39,3 +39,61 @@ how much memory is available?
 cat /proc/meminfo | grep -i available
 then divide by 1024 * 1024 the get in gb
 
+
+
+import os
+
+# Ensure the repo-level runs folder exists
+os.makedirs("runs", exist_ok=True)
+
+# Create a symlink in the root workspace so Kaggle's UI indexes it instantly
+if not os.path.exists("/kaggle/working/runs"):
+  os.symlink(
+      "/kaggle/working/assignment1-basics-fresh/runs", "/kaggle/working/runs"
+  )
+
+
+
+  import os
+from kaggle_secrets import UserSecretsClient
+
+# Load secret and set environment variables
+user_secrets = UserSecretsClient()
+os.environ["WANDB_API_KEY"] = user_secrets.get_secret("WANDB_API_KEY")
+os.environ["WANDB_MODE"] = "online"
+
+# Execute training script
+!uv run tests/nn_train.py -c tests/config/cs336_kagle.yaml
+
+
+#  upload weights file to wand from bash shell (must have wandb logged in)
+WANDB_ENTITY=manoogim-personal wandb artifact put --name cs336-basic-linux/model-weights --type model --alias latest --id jwfstvnt ./cs336_tinystories_ckpt_d.tar
+
+# in kaggle notebook download best_ckpt.path
+# step 1. in new notebook mount saved notebook that produced weights
+# step 2. in new cell run code below
+# step 3. it will create link in cell output like './best_cpt.pt' : click the link to download
+
+import shutil
+import os
+from IPython.display import FileLink, display
+
+src = "/kaggle/input/notebooks/melissamanoog/cs336-a1-gpu/assignment1-basics-fresh/runs/cs336_tinystories_327mm_b64/best_ckpt.pt"
+dst = "./best_ckpt.pt"
+
+# Copy to the working directory so Jupyter proxy can serve it
+print("Copying file to working directory...")
+shutil.copy(src, dst)
+
+if os.path.exists(dst):
+    print(f"Ready! File size: {os.path.getsize(dst) / (1024*1024):.2f} MB")
+    display(FileLink(dst))
+
+
+# WANDB  useful active-run identifiers are:
+run_id = self.wandb.id              # e.g. "8twsay7b"
+run_name = self.wandb.name          # editable display name
+project = self.wandb.project
+entity = self.wandb.entity
+run_path = f"{entity}/{project}/{run_id}"
+run_url = self.wandb.url

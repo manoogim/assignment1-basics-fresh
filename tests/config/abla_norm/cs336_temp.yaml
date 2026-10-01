@@ -5,27 +5,31 @@ model:
   d_ff: 1344
   num_layers: 4
   num_heads: 16
+  norm:
+    type: rmsnorm            # rmsnorm | none
+    eps: 1.0e-5
+    sites: [attn, ffn, final]   # where norm is kept; ignored if type is none
 
 optimizer:
   type: adamw
-  lr: 3.e-4
+  lr: 0.0055
   weight_decay: 0.1
   betas: [0.9, 0.95]
   eps: 1.e-8
 
 
 train:
-  batch_size: 64        
+  batch_size: 136        
   datatype: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
 
 scheduler:
   type: "cosine"
-  warmup_frac: 0.08       # e.g. 2% of total steps spent warming up
-  cosine_frac: 0.93       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
-  minrate: 1.0e-5
-  maxrate: 3.0e-4
+  warmup_frac: 0.12      # e.g. 12% of total steps spent warming up
+  cosine_frac: 1.0       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
+  minrate: 0.0005
+  maxrate: 0.0055
 
 data:
   tokens_folder:    '/kaggle/input/datasets/melissamanoog/tinystories-gpt4-tar-1-09-gb/tinystories_GPT4'
@@ -36,20 +40,20 @@ run:
   num_steps_dbg: null
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 29
-  name: 'abla_batch_367'     # name of the run, used for logging and saving checkpoints 
-  out_prefix: 'runs/cs336_tinystories'
-  save_every_steps: 20  # how often to save checkpoints stats
+  out_prefix: runs/norm-{config.model.norm[type]}_seed{config.run.seed}
+  save_every_steps: 500  # how often to save checkpoints stats
   log_every_steps: 20   # how often to log stats
   keep_last_ckpts: 5   # will keep this many files on disk
   resume_from: null    # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
-  wandb_enabled: true  # whether or not to log to wandb
 
 eval:
-  num_batches: 50      # how many batches to use for validation loss
+  num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
   eval_every_steps: 20  # how often to evaluate validation loss
   target_loss: null      # break training loop when validation loss reaches this target
+  best_ckpt: null
+  eval_seed: 54321
 
 gen:
   temp: null
@@ -60,9 +64,12 @@ gen:
   special_tokens: null
   model_weights_path: null
 
-
-naming:
-  active: seeded
-  templates:
-    seeded: '{config.run.name}{config.run.seed}_{config.train.batch_size}'
-    plain: '{config.run.name}_project'
+wandb:
+  enabled: True
+  proj_name: ablate-norm
+  tags: [baseline, normed]
+  active: normed
+  name_templates:
+    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
+    normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
+    plain: '{config.wandb.proj_name}_run'
