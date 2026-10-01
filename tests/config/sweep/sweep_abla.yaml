@@ -1,14 +1,13 @@
-# sweep-warmup.yaml
-name: lr-warmup-grid-seed29
+name: sweep_abla
 method: grid
 
 metric:
-  name: validation.validation_loss
-  goal: minimize
+  name: grad_norm
+  goal: experiment
 
 parameters:
   norm:
-    values: 'none'
+    value: 'none'
   
   wandb_tags:
     value: sans_norm
