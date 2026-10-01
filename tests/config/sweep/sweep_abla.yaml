@@ -6,11 +6,13 @@ metric:
   goal: experiment
 
 parameters:
+  peak_lr:
+    value: 0.0025
   norm:
     value: 'none'
   
   wandb_tags:
-    value: sans_norm
+    value: sans_norm,lower_lr
 
 command:
   - ${env}
