@@ -47,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('-tb', '--token_budget', type=str, default='small', help="For compatibility only.")
     parser.add_argument('-es', '--eval_seed', type=int, default=12345, help="Prime number to control randomness")
     parser.add_argument('-nb', '--num_batches', type=int, default=100, help='For robust eval of validation loss')
-    parser.add_argument('-bp', '--best_path', type=str, default='artifacts/best_ckpt-v29/best_ckpt.pt', help='Path to the best checkpoint that was used during training.')
+    parser.add_argument('-bp', '--best_path', type=str, default='artifacts/best_ckpt-v31/best_ckpt.pt', help='Path to the best checkpoint that was used during training.')
     args = parser.parse_args()
 
     main(args)

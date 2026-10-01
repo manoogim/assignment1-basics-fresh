@@ -91,7 +91,7 @@ class WandbConfig(NamedTuple):
     name_templates: dict
 
 class Config(NamedTuple):
-    token_budget: int
+    token_budget: int | None
     model: ModelConfig
     optimizer: OptimizerConfig
     train: TrainConfig
@@ -102,7 +102,7 @@ class Config(NamedTuple):
     gen: GenConfig
     wandb: WandbConfig
     
-def load_yaml_config(cfg_path, args):
+def load_yaml_config(cfg_path, args=None):
     """
     This loads config objects from yaml, and combines with optional overrides.
     Names of overrideable params are combined from training workflow and eval workflow
@@ -163,8 +163,9 @@ $$$ Using configuration file: {cfg_path}
     if override_eval_seed is not None:
         raw['eval']['eval_seed'] = override_eval_seed
 
+    token_budget=TokenBudget.from_arg(override_token_budget).value if override_token_budget is not None else None
     return raw, Config(
-        token_budget=TokenBudget.from_arg(override_token_budget).value, # type: ignore
+        token_budget=token_budget,
         model=ModelConfig(**raw['model']),
         optimizer=OptimizerConfig(**raw['optimizer']),
         train=TrainConfig(**raw['train']),

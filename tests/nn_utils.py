@@ -213,20 +213,29 @@ def calc_validation_loss(model, validation_tokens, eval_batch_size, seq_size, nu
                 total_tokens += valid_tokens
                 eval_sequences += input_tokens.shape[0]
         val_loss = total_loss / total_tokens
-        # batch_loss_std = np.std(batch_losses, ddof=1)
-        # batch_loss_se = batch_loss_std / np.sqrt(len(batch_losses) )
+
         result = {}
         result['val_loss'] = val_loss
         result['val_ppl'] = compute_safe_ppl(val_loss)
         result['eval_batches'] = eval_batches # this is known from input
         result['eval_tokens'] = total_tokens
         result['eval_sequences'] = eval_sequences
-        # result['batch_loss_mean'] = float(np.mean(batch_losses))
-        # result['batch_loss_std'] = float(batch_loss_std)
-        # result['batch_loss_se'] = float(batch_loss_se)
         return result, batch_losses
     finally:
         model.train(was_training)
+
+def calc_stats(batch_losses, crit_value = 1.984):
+    mean = np.mean(batch_losses)
+    std = np.std(batch_losses, ddof=1)
+    se = std / np.sqrt(len(batch_losses) )
+    margin = crit_value * se
+    result = {
+        'mean': float(mean),
+        'std': float(std),
+        'se': float(se),
+        'ci984': (float(mean-margin), float(mean+margin))
+    }
+    return result
 
 def silu(x: Float[Tensor, "d_model d_ff"]) -> Float[Tensor, "d_model d_ff"]:
     result = x * torch.sigmoid(x)

@@ -56,10 +56,10 @@ gen:
     temp: 0.5
     top_k: 10
     max_tokens: 1000
-    prompt_path: 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\prompts\\tinystoryprompt.txt'
-    vocab_folder: 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\out\\tinystories_GPT4'
+    prompt_path: 'prompts/tinystoryprompt.txt'
+    vocab_folder: 'out/tinystories_GPT4'
     special_tokens: ['<|endoftext|>']
-    model_weights_path: 'C:\\Users\\Melissa\\stanford\\cs336\\assignment1-basics-fresh\\runs\\gpt2-tiny-tinystories\\ckpt_4.pt'
+    model_weights_path: 'artifacts\best_ckpt-v30\best_ckpt.pt'
 
 wandb:
   enabled: True

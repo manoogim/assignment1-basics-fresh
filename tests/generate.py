@@ -48,7 +48,7 @@ def load_prompt(prompt_path):
     return prompt_text
 
 def generate(cfg_path):
-    _, config = load_yaml_config(cfg_path)
+    _, config = load_yaml_config(cfg_path, None)
     
    
     prompt_text = load_prompt(config.gen.prompt_path)
