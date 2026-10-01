@@ -125,6 +125,7 @@ def load_yaml_config(cfg_path, args=None):
     override_num_batches = getattr(args, 'num_batches', None)
     override_best_ckpt = getattr(args, 'best_path', None)
     override_eval_seed = getattr(args, 'eval_seed', None)
+    override_norm = getattr(args, 'norm', None)
 
     xtra_tags = (
         [tag.strip() for tag in wandb_tags_raw.split(",") if tag.strip()]
@@ -137,7 +138,7 @@ $$$ Using configuration file: {cfg_path}
     Sweep tags: {xtra_tags}
     Sweep overrides → Token budget: {override_token_budget}, peak_lr: {override_peak_lr}
     warmup_frac: {override_warmup_frac}, seed: {override_seed}, weight_decay: {override_weight_decay},
-    num_batches: {override_num_batches}, best_ckpt: {override_best_ckpt}, eval_seed: {override_eval_seed}
+    num_batches: {override_num_batches}, best_ckpt: {override_best_ckpt}, eval_seed: {override_eval_seed}, norm: {override_norm}
 """
     print(msg.strip())
 
@@ -170,6 +171,9 @@ $$$ Using configuration file: {cfg_path}
 
     if override_eval_seed is not None:
         raw['eval']['eval_seed'] = override_eval_seed
+
+    if override_norm is not None:
+        raw['model']['norm']['type'] = override_norm
 
     token_budget=TokenBudget.from_arg(override_token_budget).value if override_token_budget is not None else 0
     dd = {

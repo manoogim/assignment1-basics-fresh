@@ -203,6 +203,7 @@ if __name__ == '__main__':
     parser.add_argument('-wf', '--warmup_frac', type=float, help="Warmup frac of cosine annealing")
     parser.add_argument('-s', '--seed', type=int, help="Prime number to control randomness")
     parser.add_argument('-wd', '--weight_decay', type=float, help="Optimizers weight decay factor")
+    parser.add_argument('-n', '--norm', type=str, help="Norm type: 'layer' or 'rms' or 'none'")
     
     args = parser.parse_args()
     

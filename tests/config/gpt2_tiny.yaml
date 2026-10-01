@@ -67,7 +67,7 @@ gen:
 
 wandb:
   enabled: True
-  proj_name: ablate-norm
+  proj_name: zzablate-norm
   tags: [baseline, normed]
   active: normed
   name_templates:
