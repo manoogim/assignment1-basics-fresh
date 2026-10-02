@@ -6,7 +6,7 @@ parameters:
     value: "nope"
   
   peak_lr: 
-    value: 0.0055
+    values: [0.0020, 0.0005]
   
   wandb_tags:
     value: "noped"
