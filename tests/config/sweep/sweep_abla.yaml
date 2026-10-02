@@ -2,13 +2,11 @@ name: sweep_abla
 method: grid
 
 parameters:
-  peak_lr:
-    value: 0.0055
-  norm:
-    value: 'rms'
-  
+  pos_emb:
+    value: nope
+  peak_lr: 0.0055
   wandb_tags:
-    value: postlayer-norm-baseline
+    value: noped
 
 command:
   - ${env}

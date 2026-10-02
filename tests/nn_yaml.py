@@ -36,6 +36,7 @@ class ModelConfig(NamedTuple):
     num_layers: int
     num_heads: int
     norm: dict
+    pos_emb: str
 
 class OptimizerConfig(NamedTuple):
     type: str
@@ -127,6 +128,8 @@ def load_yaml_config(cfg_path, args=None):
     override_eval_seed = getattr(args, 'eval_seed', None)
     override_norm = getattr(args, 'norm', None)
 
+    override_pos_emb = getattr(args, 'pos_emb', None)
+
     xtra_tags = (
         [tag.strip() for tag in wandb_tags_raw.split(",") if tag.strip()]
         if wandb_tags_raw
@@ -138,7 +141,7 @@ $$$ Using configuration file: {cfg_path}
     Sweep tags: {xtra_tags}
     Sweep overrides → Token budget: {override_token_budget}, peak_lr: {override_peak_lr}
     warmup_frac: {override_warmup_frac}, seed: {override_seed}, weight_decay: {override_weight_decay},
-    num_batches: {override_num_batches}, best_ckpt: {override_best_ckpt}, eval_seed: {override_eval_seed}, norm: {override_norm}
+    num_batches: {override_num_batches}, best_ckpt: {override_best_ckpt}, eval_seed: {override_eval_seed}, norm: {override_norm}, pos_emb: {override_pos_emb}
 """
     print(msg.strip())
 
@@ -173,13 +176,13 @@ $$$ Using configuration file: {cfg_path}
     if override_eval_seed is not None:
         raw['eval']['eval_seed'] = override_eval_seed
 
-    if override_norm is not None:
-        raw['model']['norm']['type'] = override_norm
+    if override_pos_emb is not None:
+        raw['model']['pos_emb'] = override_pos_emb
 
     token_budget=TokenBudget.from_arg(override_token_budget).value if override_token_budget is not None else 0
     dd = {
-        'wandb_name': 'zz',
-        'runs_folder': 'zz'
+        'wandb_name': '',
+        'runs_folder': ''
     }
     config = Config(
         token_budget=token_budget,
@@ -208,7 +211,7 @@ def resolve_device(requested: str) -> str:
     return 'cpu'
 
 def resolve_runs_folder(config: Config) -> str:
-    prefix = config.run.out_prefix.format(config=config)
+    prefix = f'{config.run.out_prefix}{resolve_wandb_name(config)}'
     folder = f'{prefix}_{config.token_budget//1_000_000}mm_b{config.train.batch_size}'
     return folder
 
@@ -217,11 +220,11 @@ def resolve_wandb_name(config: Config) -> str:
     templ = config.wandb.name_templates[active]
     return templ.format(config=config)
 
-def make_norm(d_model: int, norm: dict, site: str, device=None, dtype=None) -> nn.Module:
-    if norm['type'] == 'none' or site not in norm['sites']:
-        return nn.Identity()
-    else:
-        return MyRmsNorm(d_model, eps=norm['eps'], device=device, dtype=dtype)
+# def make_norm(d_model: int, norm: dict, site: str, device=None, dtype=None) -> nn.Module:
+#     if norm['type'] == 'none' or site not in norm['sites']:
+#         return nn.Identity()
+#     else:
+#         return MyRmsNorm(d_model, eps=norm['eps'], device=device, dtype=dtype)
 
 # in the block:   self.attn_norm = make_norm(cfg, "attn")
 #                 self.ffn_norm  = make_norm(cfg, "ffn")
