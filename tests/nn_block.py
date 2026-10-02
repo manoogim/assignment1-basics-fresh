@@ -28,8 +28,12 @@ class MyTransformerBlock(nn.Module):
         self.rms_norm2 = make_norm(d_model, norm, "ffn", device=device, dtype=dtype)
         self.ff_block = MySwiglu(d_model, d_ff, device, dtype)
         
-
     def forward(self, x, token_positions = None):
+        y = self.rms_norm1(x + self.mha(x, token_positions=token_positions))
+        y = self.rms_norm2(y + self.ff_block(y))
+        return y
+    
+    def forward2(self, x, token_positions = None):
         y = x + self.mha(self.rms_norm1(x), token_positions=token_positions)
         y = y + self.ff_block(self.rms_norm2(y))
         return y

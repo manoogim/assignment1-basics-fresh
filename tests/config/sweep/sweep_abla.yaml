@@ -1,18 +1,14 @@
 name: sweep_abla
 method: grid
 
-metric:
-  name: grad_norm
-  goal: experiment
-
 parameters:
   peak_lr:
-    values: [0.0055, 0.0020, 0.0005]
+    values: [0.0020, 0.0005]
   norm:
-    value: 'none'
+    value: 'rms'
   
   wandb_tags:
-    value: sans-norm
+    value: postlayer-norm
 
 command:
   - ${env}
