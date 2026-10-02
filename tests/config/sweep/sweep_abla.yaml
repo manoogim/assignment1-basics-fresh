@@ -5,7 +5,8 @@ parameters:
   pos_emb:
     value: "nope"
   
-  peak_lr: 0.0055
+  peak_lr: 
+    value: 0.0055
   
   wandb_tags:
     value: "noped"
