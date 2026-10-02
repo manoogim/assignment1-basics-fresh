@@ -3,12 +3,12 @@ method: grid
 
 parameters:
   peak_lr:
-    values: [0.0020, 0.0005]
+    value: 0.0055
   norm:
     value: 'rms'
   
   wandb_tags:
-    value: postlayer-norm
+    value: postlayer-norm-baseline
 
 command:
   - ${env}
