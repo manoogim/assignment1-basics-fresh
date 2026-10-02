@@ -9,10 +9,10 @@ parameters:
   peak_lr:
     value: 0.0055
   norm:
-    value: 'rms'
+    value: 'none'
   
   wandb_tags:
-    value: baseline
+    value: sans-norm
 
 command:
   - ${env}

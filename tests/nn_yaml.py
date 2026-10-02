@@ -153,6 +153,7 @@ $$$ Using configuration file: {cfg_path}
     if override_peak_lr is not None:
         raw['optimizer']['lr'] = override_peak_lr
         raw['scheduler']['maxrate'] = override_peak_lr
+        raw['scheduler']['minrate'] = 0.1 * override_peak_lr
 
     if override_warmup_frac is not None:
         raw['scheduler']['warmup_frac'] = override_warmup_frac

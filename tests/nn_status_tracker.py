@@ -129,7 +129,7 @@ class StatusTracker:
             window_throughput = run_throughput
         # ETA
         remaining_tokens = (self.total_token_budget - tokens_processed_lifetime)
-        eta_seconds = remaining_tokens / window_throughput
+        eta_seconds = remaining_tokens / window_throughput if window_throughput > 0 else float('inf')
 
 
         # remember for the final run summary / metadata and print periodic status
