@@ -7,7 +7,7 @@ metric:
 
 parameters:
   peak_lr:
-    value: 0.0055
+    values: [0.0055, 0.0020, 0.0005]
   norm:
     value: 'none'
   
