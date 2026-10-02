@@ -74,5 +74,5 @@ wandb:
   name_templates:
     seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
-    roped: '{config.wandb.proj_name}{config.run.seed}_{config.model.pos_emb}'
+    roped: '{config.wandb.proj_name}{config.run.seed}_rms_{config.model.pos_emb}_lr{config.scheduler.maxrate}'
     plain: '{config.wandb.proj_name}_run'
