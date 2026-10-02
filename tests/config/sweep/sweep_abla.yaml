@@ -3,10 +3,12 @@ method: grid
 
 parameters:
   pos_emb:
-    value: nope
+    value: 'nope'
+  
   peak_lr: 0.0055
+  
   wandb_tags:
-    value: noped
+    value: 'noped'
 
 command:
   - ${env}
