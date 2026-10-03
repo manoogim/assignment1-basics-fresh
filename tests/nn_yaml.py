@@ -1,11 +1,13 @@
 from enum import Enum
 
 import torch
+from torch import nn
 import yaml
 
 from typing import NamedTuple, Optional
 
 class TokenBudget(Enum):
+    EXTRA_SMALL = 40_000_000
     SMALL = 70_000_000
     MEDIUM = 115_000_000
     LARGE = 327_680_000
@@ -13,7 +15,9 @@ class TokenBudget(Enum):
     @classmethod
     def from_arg(cls, arg: str ) -> "TokenBudget":
         a = arg.lower().strip()
-        if a in ("s", "small"):
+        if a in ('xs', 'extra-small'):
+            return cls.EXTRA_SMALL
+        elif a in ("s", "small"):
             return cls.SMALL
         elif a in ('m', 'medium'):
             return cls.MEDIUM
@@ -69,10 +73,10 @@ class RunConfig(NamedTuple):
 class EvalConfig(NamedTuple):
     num_batches: int
     batch_size: int
-    eval_every_steps: int
-    target_loss: float
-    best_ckpt: str
-    eval_seed: int
+    eval_every_steps: int   # cadence of computing validation loss during training
+    target_loss: float      # can be used to break out of training loop
+    best_ckpt: str          # for computing robust validation loss
+    eval_seed: int          # make random generator deterministic
 
 class GenConfig(NamedTuple):
     temp: float
@@ -91,7 +95,8 @@ class WandbConfig(NamedTuple):
     name_templates: dict
 
 class Config(NamedTuple):
-    token_budget: int | None
+    token_budget: int 
+    dict: dict
     model: ModelConfig
     optimizer: OptimizerConfig
     train: TrainConfig
@@ -144,6 +149,7 @@ $$$ Using configuration file: {cfg_path}
     if override_peak_lr is not None:
         raw['optimizer']['lr'] = override_peak_lr
         raw['scheduler']['maxrate'] = override_peak_lr
+        raw['scheduler']['minrate'] = 0.1 * override_peak_lr
 
     if override_warmup_frac is not None:
         raw['scheduler']['warmup_frac'] = override_warmup_frac
@@ -163,9 +169,14 @@ $$$ Using configuration file: {cfg_path}
     if override_eval_seed is not None:
         raw['eval']['eval_seed'] = override_eval_seed
 
-    token_budget=TokenBudget.from_arg(override_token_budget).value if override_token_budget is not None else None
-    return raw, Config(
+    token_budget=TokenBudget.from_arg(override_token_budget).value if override_token_budget is not None else 0
+    dd = {
+        'wandb_name': '',
+        'runs_folder': ''
+    }
+    config = Config(
         token_budget=token_budget,
+        dict=dd,
         model=ModelConfig(**raw['model']),
         optimizer=OptimizerConfig(**raw['optimizer']),
         train=TrainConfig(**raw['train']),
@@ -176,6 +187,9 @@ $$$ Using configuration file: {cfg_path}
         gen = GenConfig(**raw['gen']),
         wandb = WandbConfig(**raw['wandb'])
     )
+    dd['wandb_name'] = resolve_wandb_name(config)
+    dd['runs_folder'] = resolve_runs_folder(config)
+    return raw, config
 
 def resolve_device(requested: str) -> str:
     if requested != 'auto':
@@ -185,3 +199,14 @@ def resolve_device(requested: str) -> str:
     if torch.backends.mps.is_available():
         return 'mps'
     return 'cpu'
+
+def resolve_runs_folder(config: Config) -> str:
+    prefix = f'{config.run.out_prefix}{resolve_wandb_name(config)}'
+    folder = f'{prefix}_{config.token_budget//1_000_000}mm_b{config.train.batch_size}'
+    print(f'*** Runs folder: {folder}')
+    return folder
+
+def resolve_wandb_name(config: Config) -> str:
+    active = config.wandb.active
+    templ = config.wandb.name_templates[active]
+    return templ.format(config=config)

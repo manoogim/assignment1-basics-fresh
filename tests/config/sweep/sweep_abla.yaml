@@ -1,0 +1,20 @@
+name: sweep_abla
+method: grid
+
+parameters:
+  gated:
+    value: "no"
+
+  peak_lr: 
+    values: [0.0055, 0.0020, 0.0005]
+  
+  wandb_tags:
+    value: null
+
+command:
+  - ${env}
+  - ${interpreter}
+  - "-m"
+  - tests.nn_train
+  - "--config=tests/config/abla_norm/cs336_temp.yaml"
+  - ${args}

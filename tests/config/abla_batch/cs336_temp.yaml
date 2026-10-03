@@ -15,7 +15,7 @@ optimizer:
 
 
 train:
-  batch_size: 32        
+  batch_size: 128        
   datatype: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
@@ -28,26 +28,25 @@ scheduler:
   maxrate: 0.0055
 
 data:
-  tokens_folder: 'out/tinystories_GPT4'
-  # tokens_folder:    '/kaggle/input/datasets/melissamanoog/tinystories-gpt4-tar-1-09-gb/tinystories_GPT4'
+  tokens_folder:    '/kaggle/input/datasets/melissamanoog/tinystories-gpt4-tar-1-09-gb/tinystories_GPT4'
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
   ckpt_best_below: 2.0
-  num_steps_dbg: 5
+  num_steps_dbg: null
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 29
   out_prefix: runs/
-  save_every_steps: 2  # how often to save checkpoints stats
-  log_every_steps: 2   # how often to log stats
-  keep_last_ckpts: 1   # will keep this many files on disk
+  save_every_steps: 500  # how often to save checkpoints stats
+  log_every_steps: 20   # how often to log stats
+  keep_last_ckpts: 5   # will keep this many files on disk
   resume_from: null    # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
 
 eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
-  eval_every_steps: 2  # how often to evaluate validation loss
+  eval_every_steps: 20  # how often to evaluate validation loss
   target_loss: null      # break training loop when validation loss reaches this target
   best_ckpt: null
   eval_seed: 54321
@@ -63,11 +62,11 @@ gen:
 
 wandb:
   enabled: True
-  proj_name: zzablate-pos-embed
-  tags: []
+  proj_name: abla-norm-128
+  tags: [silu]
   active: plain
   name_templates:
     seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
-    roped: '{config.wandb.proj_name}{config.run.seed}_rms_rope_lr{config.scheduler.maxrate}'
+    roped: '{config.wandb.proj_name}{config.run.seed}_rms_{config.model.pos_emb}_lr{config.scheduler.maxrate}'
     plain: '{config.wandb.proj_name}_silu'
