@@ -2,6 +2,7 @@ from torch import nn
 
 from tests.nn_mhsa import MultiHeadSelfAttention, MultiheadSelfattentionRoped
 from tests.nn_norm import MyRmsNorm
+from tests.nn_silu import MySiluFFN
 from tests.nn_swiglu import MySwiglu
 
 """
@@ -15,6 +16,7 @@ class MyTransformerBlock(nn.Module):
                  max_seq_len: int,
                  norm: dict = None,
                  pos_emb: str = 'rope',
+                 gated: bool = True,
                  eps: float = 0.00001, 
                  theta: float = 10_000,
                  
@@ -28,8 +30,10 @@ class MyTransformerBlock(nn.Module):
             self.mha = MultiHeadSelfAttention(d_model, num_heads, device, dtype)
 
         self.rms_norm2 = MyRmsNorm(d_model, eps, device, dtype)
-        self.ff_block = MySwiglu(d_model, d_ff, device, dtype)
-        
+        if gated:
+            self.ff_block = MySwiglu(d_model, d_ff, device, dtype)
+        else:
+            self.ff_block = MySiluFFN(d_model, d_ff, device, dtype)
 
     def forward(self, x, token_positions = None):
         y = x + self.mha(self.rms_norm1(x), token_positions=token_positions)

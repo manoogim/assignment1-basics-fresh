@@ -205,6 +205,8 @@ if __name__ == '__main__':
     parser.add_argument('-wd', '--weight_decay', type=float, help="Optimizers weight decay factor")
     parser.add_argument('-n', '--norm', type=str, help="Norm type: 'rms' or 'none'")
     parser.add_argument('-pe', '--pos_emb', type=str, help="Positional embedding type: 'none' or 'rope'")
+    parser.add_argument('-g', '--gated', type=str, help="Gated FFN: 'yes' or 'no'")
+
     args = parser.parse_args()
     
     main(args)

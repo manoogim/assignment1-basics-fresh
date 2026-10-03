@@ -37,6 +37,7 @@ class ModelConfig(NamedTuple):
     num_heads: int
     norm: dict
     pos_emb: str
+    gated: bool
 
 class OptimizerConfig(NamedTuple):
     type: str
@@ -129,6 +130,7 @@ def load_yaml_config(cfg_path, args=None):
     override_norm = getattr(args, 'norm', None)
 
     override_pos_emb = getattr(args, 'pos_emb', None)
+    override_gated = getattr(args, 'gated', None)
 
     xtra_tags = (
         [tag.strip() for tag in wandb_tags_raw.split(",") if tag.strip()]
@@ -141,7 +143,7 @@ $$$ Using configuration file: {cfg_path}
     Sweep tags: {xtra_tags}
     Sweep overrides → Token budget: {override_token_budget}, peak_lr: {override_peak_lr}
     warmup_frac: {override_warmup_frac}, seed: {override_seed}, weight_decay: {override_weight_decay},
-    num_batches: {override_num_batches}, best_ckpt: {override_best_ckpt}, eval_seed: {override_eval_seed}, norm: {override_norm}, pos_emb: {override_pos_emb}
+    num_batches: {override_num_batches}, best_ckpt: {override_best_ckpt}, eval_seed: {override_eval_seed}, norm: {override_norm}, pos_emb: {override_pos_emb}, gated: {override_gated}
 """
     print(msg.strip())
 
@@ -178,6 +180,11 @@ $$$ Using configuration file: {cfg_path}
 
     if override_pos_emb is not None:
         raw['model']['pos_emb'] = override_pos_emb
+
+    if override_gated is not None:
+        raw['model']['gated'] = True if override_gated.lower() == 'yes' else False
+        if not raw['model']['gated']:
+            raw['model']['d_ff'] = 4 * raw['model']['d_model']
 
     token_budget=TokenBudget.from_arg(override_token_budget).value if override_token_budget is not None else 0
     dd = {

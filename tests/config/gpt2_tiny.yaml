@@ -70,10 +70,10 @@ gen:
 wandb:
   enabled: True
   proj_name: zzablate-pos-embed
-  tags: [baseline, roped]
-  active: roped
+  tags: []
+  active: plain
   name_templates:
     seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
-    roped: '{config.wandb.proj_name}{config.run.seed}_{config.model.pos_emb}'
-    plain: '{config.wandb.proj_name}_run'
+    roped: '{config.wandb.proj_name}{config.run.seed}_rms_rope_lr{config.scheduler.maxrate}'
+    plain: '{config.wandb.proj_name}_silu'
