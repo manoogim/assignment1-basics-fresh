@@ -34,10 +34,9 @@ def get_batch(x, batch_size, ctx_len, g: torch.Generator = None, device=None) ->
     result = torch.tensor(numpy.array(inputs), device=device, dtype=torch.int32), torch.tensor(numpy.array(outputs), device=device, dtype=torch.int32)
     return result
 
-def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, sched_info: dict, iteration:int, tokens_processed: int, out_path: str ):
+def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteration:int, out_path: str, sched_info: dict = {} ):
     obj = {}
     obj['iteration'] = iteration
-    obj['tokens_processed'] = tokens_processed
     obj['model_state'] = model.state_dict()
     obj['adamw_state'] = optimizer.state_dict()
     obj['sched_info'] = sched_info
@@ -51,7 +50,7 @@ def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, sched_in
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write(str(iteration))
 
-def load_checkpoint( model: nn.Module, optimizer: torch.optim.Optimizer | None, src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes], device) -> tuple[int, int, dict]:
+def load_checkpoint( src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes], model: nn.Module, optimizer: torch.optim.Optimizer | None,  device) -> tuple[int, dict]:
     obj = torch.load(src, map_location=device)
     model.load_state_dict(obj['model_state'])
     if optimizer is not None:
@@ -59,5 +58,4 @@ def load_checkpoint( model: nn.Module, optimizer: torch.optim.Optimizer | None, 
     
     sched_info = obj['sched_info']
     iteration = obj['iteration']
-    tokens_processed = obj['tokens_processed']
-    return iteration, tokens_processed, sched_info
+    return iteration, sched_info

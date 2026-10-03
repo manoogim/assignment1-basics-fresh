@@ -557,7 +557,7 @@ def run_cross_entropy(
     return result
 
 
-def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
+def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> float:
     """Given a set of parameters, clip their combined gradients to have l2 norm at most max_l2_norm.
 
     Args:
@@ -644,7 +644,7 @@ def run_load_checkpoint(
     Returns:
         int: the previously-serialized number of iterations.
     """
-    iteration = load_checkpoint(src, model, optimizer)
+    iteration, _ = load_checkpoint(src, model, optimizer, model.device)
     return iteration
 
 

@@ -79,7 +79,8 @@ def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MySche
 
     sched_info = sched.as_dict()
     sched_info['batch_size'] = config.train.batch_size
-    save_checkpoint(model, optimizer, sched_info, iteration, tokens_processed, out_path)
+    sched_info['tokens_processed'] = tokens_processed
+    save_checkpoint(model, optimizer,  iteration, out_path, sched_info)
     return out_path
 
 def init_run_state(model, optimizer, config: Config, total_steps) -> tuple[int,int,MyScheduler]:
@@ -90,10 +91,10 @@ def init_run_state(model, optimizer, config: Config, total_steps) -> tuple[int,i
         src = os.path.join(output_dir, cpt)        
         if not os.path.exists(src):
             raise Exception(f'Checkpoint not loaded - file does not exist: {src}')
-        step, tokens_processed, sched_info = load_checkpoint(model, optimizer, src, config.run.device)
+        step, sched_info = load_checkpoint(src, model, optimizer,  config.run.device)
         next_step = step + 1
         sched = MyScheduler.from_state_dict(sched_info)
-        StatusTracker.log(f'Resuming from step: {step}, tokens processed: {tokens_processed:_} from file: {src}. Keeping original lr schedule: {sched}')
+        StatusTracker.log(f'Resuming from step: {step}, tokens processed: {sched_info["tokens_processed"]:_} from file: {src}. Keeping original lr schedule: {sched}')
         # TODO - should we raise or soft warn if new config has different learning schedule
         if sched_info['batch_size'] != config.train.batch_size:
             StatusTracker.log(f"[INFO] Resuming with batch_size={config.train.batch_size}, "
