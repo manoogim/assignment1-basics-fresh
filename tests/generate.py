@@ -38,7 +38,7 @@ def top_k_logits(logits, k):
 
 def build_model(config: Config):
     model = MyTransformer.from_config(config.model, 'cpu')
-    load_checkpoint(model, None, config.gen.model_weights_path, 'cpu')
+    load_checkpoint(config.gen.model_weights_path, model, None, 'cpu')
     model.eval()
     return model
 

@@ -31,7 +31,11 @@ class LastUpdate(NamedTuple):
 
     def as_dict(self):
         return self._asdict()
-    
+    """
+wandb.define_metric("optim_step")
+wandb.define_metric("*", step_metric="optim_step")
+wandb.log({"optim_step": step, "train/loss": loss, "val/loss": val, "tokens_seen": tokens}, commit=True)
+    """
     def render(self) -> str:
         return (
             f"[{self.step}] loss={self.loss:.4f} | min_loss={self.min_window_loss:.4f} | ppl={compute_safe_ppl(self.loss):.2f}\n"

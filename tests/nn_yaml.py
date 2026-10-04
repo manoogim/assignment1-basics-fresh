@@ -122,44 +122,44 @@ def load_yaml_config(cfg_path, args=None):
     wandb_tags = []
 
     # overrider peak learning rate
-    override_peak_lr = overrides['peak_lr']
+    override_peak_lr = overrides.get('peak_lr', None)
     if override_peak_lr is not None:
         raw['optimizer']['lr'] = override_peak_lr
         raw['scheduler']['maxrate'] = override_peak_lr
         raw['scheduler']['minrate'] = 0.1 * override_peak_lr
         wandb_tags.append(f"lr{override_peak_lr}")
 
-    override_warmup_frac = overrides['warmup_frac']
+    override_warmup_frac = overrides.get('warmup_frac', None)
     if override_warmup_frac is not None:
         raw['scheduler']['warmup_frac'] = override_warmup_frac
         wandb_tags.append(f"warmup_frac{override_warmup_frac}")
 
-    override_seed = overrides['seed']
+    override_seed = overrides.get('seed', None)
     if override_seed is not None:
         raw['run']['seed'] = override_seed
         wandb_tags.append(f"seed{override_seed}")
 
-    override_weight_decay = overrides['weight_decay']
+    override_weight_decay = overrides.get('weight_decay', None)
     if override_weight_decay is not None:
         raw['optimizer']['weight_decay'] = override_weight_decay
         wandb_tags.append(f"weight_decay{override_weight_decay}")
 
-    override_num_batches = overrides['num_batches']
+    override_num_batches = overrides.get('num_batches', None)
     if override_num_batches is not None:
         raw['eval']['num_batches'] = override_num_batches
         wandb_tags.append(f"eval_num_batches{override_num_batches}")
 
-    override_best_ckpt = overrides['best_path'] # for stand-alone eval script, for computing robust validation loss
+    override_best_ckpt = overrides.get('best_path', None) # for stand-alone eval script, for computing robust validation loss
     if override_best_ckpt is not None:
         raw['eval']['best_ckpt'] = override_best_ckpt
         wandb_tags.append(f"best_ckpt{override_best_ckpt}")
 
-    override_eval_seed = overrides['eval_seed']
+    override_eval_seed = overrides.get('eval_seed', None)
     if override_eval_seed is not None:
         raw['eval']['eval_seed'] = override_eval_seed
         wandb_tags.append(f"eval_seed{override_eval_seed}")
 
-    override_token_budget = overrides['token_budget']
+    override_token_budget = overrides.get('token_budget', None)
     if override_token_budget is not None:
         wandb_tags.append(f"token_budget{override_token_budget}")
         token_budget=TokenBudget.from_arg(override_token_budget).value

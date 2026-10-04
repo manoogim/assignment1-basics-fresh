@@ -18,7 +18,7 @@ def save_losses(ckpt_path, losses):
     return loss_file
 
 def evaluate(model, validation_tokens, config: Config, ckpt_path):
-    load_checkpoint(model, None, ckpt_path, config.run.device)
+    load_checkpoint(ckpt_path, model, None, config.run.device)
     eval_batch_size, seq_size, num_eval_batches = config.eval.batch_size, config.model.seq_len, config.eval.num_batches
     start = time.perf_counter()
     eval_result, batch_losses = calc_validation_loss(model, validation_tokens, eval_batch_size, seq_size, num_eval_batches, config.eval.eval_seed, config.run.device)

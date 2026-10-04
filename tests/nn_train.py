@@ -79,7 +79,6 @@ def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MySche
 
     sched_info = sched.as_dict()
     sched_info['batch_size'] = config.train.batch_size
-    sched_info['grad_accum'] = config.train.grad_accum
     sched_info['tokens_processed'] = tokens_processed
     save_checkpoint(model, optimizer,  iteration, out_path, sched_info)
     return out_path
@@ -127,48 +126,32 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
     start_step, tokens_processed, sched = init_run_state(llm, optim, config, total_steps)
 
+    StatusTracker.log(f"Total steps: {total_steps:_}, Total tokens budget: {config.token_budget:_}, runs folder: {config.dict['runs_folder']} ")
     tracker = StatusTracker(tokens_processed, total_steps, sched.as_dict(), raw_cfg, config, llm.num_params)
-    msg=f"Total steps: {total_steps:_}, Total tokens budget: {config.token_budget:_}, effective batch size: {config.train.batch_size}, grad_accum: {config.train.grad_accum}, runs folder: {config.dict['runs_folder']} "
-    tracker.log(msg)
-
+    
     training_tokens, validation_tokens = load_tokens(config)
-
-    # config.train.batch_size stays the EFFECTIVE batch size; add config.train.grad_accum (int, default 1).
-
-    accum = config.train.grad_accum
-    assert config.train.batch_size % accum == 0, f'batch_size {config.train.batch_size} must be divisible by grad_accum {accum}'
-    micro_batch = config.train.batch_size // accum          # integer
-    # step is the OPTIMIZER step index and starts at start_step (matters on resume)
-    step, lr, grad_norm = start_step, 0, 0
-    mean_loss = torch.zeros(())                              # last completed step's mean loss
-    loss_sum = 0.0                                           # becomes a tensor after first add
+    
+    # infinite training loop (no worries it will break based on tokens_processed  ;)
+    step, lr, grad_norm, loss = 0, 0, 0, 0
     keep_training = True
+    for step in itertools.count(start_step):
 
-    optim.zero_grad()
-    for micro_step in itertools.count():                     # boundary test is relative, so no start offset
-        input_tokens, output_tokens = get_batch(training_tokens, micro_batch, config.model.seq_len, training_generator, config.run.device)
+        input_tokens, output_tokens = get_batch(training_tokens, config.train.batch_size, config.model.seq_len, training_generator, config.run.device)
         tokens_processed += input_tokens.numel()
 
-        raw_loss = compute_loss(llm, input_tokens, output_tokens)
-        (raw_loss / accum).backward()                        # scale only for the gradient
-        loss_sum = loss_sum + raw_loss.detach()              # log the UNscaled loss
+        optim.zero_grad()
+        loss = compute_loss(llm, input_tokens, output_tokens)
 
-        if (micro_step + 1) % accum != 0:                    # window not complete yet
-            continue
-
-        # ---------- optimizer step: same body and order as the old loop ----------
+        # back propagation
+        loss.backward()
         grad_norm = clip_gradient(llm.parameters(), config.train.max_norm, config.train.grad_eps)
         lr = sched.calc_learning_rate(step + 1)
         optim.set_lr(lr)
         optim.step()
-        optim.zero_grad()
-
-        mean_loss = loss_sum / accum                         # mean over the window
-        loss_sum = 0.0
 
         log_now = is_cadence_hit(step, config.run.log_every_steps)
         if log_now:
-            tracker.update(step, mean_loss.item(), lr, grad_norm, tokens_processed )
+            tracker.update(step, loss.item(), lr, grad_norm, tokens_processed )
 
         eval_now = is_cadence_hit( step, config.eval.eval_every_steps)
         if eval_now:
@@ -180,7 +163,6 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
             ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, ckpt_name)
             tracker.update_checkpoint(step, ckpt_path)
 
-        # stop only on optimizer-step boundaries, so `step` is the last completed step at break
         if tokens_processed >= config.token_budget:
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {config.token_budget:_}. Now training stops!')
             keep_training = False
@@ -191,12 +173,10 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
         if not keep_training:
             break   
 
-        step += 1
-
     tracker.log('Training loop completed. Reporting final loss metrics, and computing final validation loss and uploading best artifact')
     # always print everything at the end 
     # since we are saving periodic checkpoints for the purpose of continuation in case of crash, and this is the end, there is no need to save the final checkpoint
-    tracker.update(step, mean_loss.item(), lr, grad_norm, tokens_processed)
+    tracker.update(step, loss.item(), lr, grad_norm, tokens_processed) # type: ignore
 
     # save best  checkpoint and upload artifact
     # on the slim chance last step was the best this line would be repeating the same work: calc validation  loss, if best 

@@ -30,7 +30,6 @@ scheduler:
 
 data:
   tokens_folder: 'out/tinystories_GPT4'
-  # tokens_folder:    '/kaggle/input/datasets/melissamanoog/tinystories-gpt4-tar-1-09-gb/tinystories_GPT4'
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
@@ -54,13 +53,13 @@ eval:
   eval_seed: 54321
 
 gen:
-  temp: null
-  top_k: null
-  max_tokens: null
-  prompt_path: null
-  vocab_folder: null
-  special_tokens: null
-  model_weights_path: null
+  temp: 0
+  top_k: 10
+  max_tokens: 256
+  prompt_path: 'prompts/tinystoryprompt.txt'
+  vocab_folder: 'out/tinystories_GPT4'
+  special_tokens: [<|endoftext|>]
+  model_weights_path: artifacts/best_ckpt-v29/best_ckpt.pt
 
 wandb:
   enabled: True
