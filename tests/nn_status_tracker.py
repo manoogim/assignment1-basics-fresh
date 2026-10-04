@@ -1,8 +1,8 @@
-import math
 import time
 import os
 from typing import NamedTuple
 import psutil
+import torch
 import wandb
 
 from tests.nn_utils import compute_safe_ppl
@@ -32,7 +32,7 @@ class LastUpdate(NamedTuple):
     def as_dict(self):
         return self._asdict()
     """
-wandb.define_metric("optim_step")
+    wandb.define_metric("optim_step")
 wandb.define_metric("*", step_metric="optim_step")
 wandb.log({"optim_step": step, "train/loss": loss, "val/loss": val, "tokens_seen": tokens}, commit=True)
     """
@@ -79,6 +79,9 @@ class StatusTracker:
  
         # last values seen by update(), for the final run summary
         self.last_update = None
+
+        if config.run.device == 'cuda':
+            torch.cuda.reset_peak_memory_stats()
 
         if config.wandb.enabled:
             raw_cfg['schedule'] = sched_as_dict
@@ -192,10 +195,15 @@ class StatusTracker:
         self.log(best_loss_msg)
 
         if self.wandb is not None:
-            self.wandb.summary.update({"best_validation_loss": self.best_val._asdict() })
-            # At the end of training report time
-            self.wandb.summary.update({'final_metrics': self.last_update.as_dict()}) # type: ignore
-            # self.wandb.summary[" elapsed_hms"] = fmt_hms(self.last_update.runtime_seconds)
+            summary = {
+                'best_validation_loss': self.best_val._asdict() ,
+                'final_metrics': self.last_update.as_dict(), # type: ignore
+                'cuda_metrics': {
+                    "gpu/max_allocated_gib": torch.cuda.max_memory_allocated() / 2**30,
+                    "gpu/max_reserved_gib": torch.cuda.max_memory_reserved() / 2**30
+                    } ,
+            }
+            self.wandb.summary.update(summary)
 
             if self.best_ckpt_path is None:
                 self.log('No best checkpoint was saved during this run - skipping artifact upload.')
