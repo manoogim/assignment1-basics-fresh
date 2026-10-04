@@ -15,7 +15,8 @@ optimizer:
 
 
 train:
-  batch_size: 32        
+  batch_size: 32
+  grad_accum: 4        
   datatype: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
@@ -34,12 +35,12 @@ data:
 
 run:
   ckpt_best_below: 2.0
-  num_steps_dbg: 5
+  num_steps_dbg: 16
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 29
   out_prefix: runs/
   save_every_steps: 2  # how often to save checkpoints stats
-  log_every_steps: 2   # how often to log stats
+  log_every_steps: 1   # how often to log stats
   keep_last_ckpts: 1   # will keep this many files on disk
   resume_from: null    # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
@@ -70,4 +71,4 @@ wandb:
     seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
     roped: '{config.wandb.proj_name}{config.run.seed}_rms_rope_lr{config.scheduler.maxrate}'
-    plain: '{config.wandb.proj_name}_silu'
+    plain: '{config.wandb.proj_name}'

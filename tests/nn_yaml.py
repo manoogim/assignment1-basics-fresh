@@ -43,6 +43,7 @@ class OptimizerConfig(NamedTuple):
 
 class TrainConfig(NamedTuple):
     batch_size: int
+    grad_accum: int
     datatype: str       # # float32 is CPU-friendly, float16 is GPU-friendly, bfloat16 is TPU-friendly
     max_norm: float
     grad_eps: float
