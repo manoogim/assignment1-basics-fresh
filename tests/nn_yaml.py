@@ -43,7 +43,7 @@ class OptimizerConfig(NamedTuple):
 
 class TrainConfig(NamedTuple):
     batch_size: int
-    datatype: str
+    datatype: str       # # float32 is CPU-friendly, float16 is GPU-friendly, bfloat16 is TPU-friendly
     max_norm: float
     grad_eps: float
 
@@ -106,70 +106,64 @@ class Config(NamedTuple):
     eval: EvalConfig
     gen: GenConfig
     wandb: WandbConfig
-    
+
 def load_yaml_config(cfg_path, args=None):
     """
     This loads config objects from yaml, and combines with optional overrides.
     Names of overrideable params are combined from training workflow and eval workflow
     """    
-    wandb_tags_raw = getattr(args, "wandb_tags", None)
-    override_token_budget = getattr(args, "token_budget", None)
-    override_peak_lr = getattr(args, "peak_lr", None)
-    override_warmup_frac = getattr(args, "warmup_frac", None)
-    override_seed = getattr(args, "seed", None)
-    override_weight_decay = getattr(args, "weight_decay", None)
-
-    override_num_batches = getattr(args, 'num_batches', None)
-    override_best_ckpt = getattr(args, 'best_path', None)
-    override_eval_seed = getattr(args, 'eval_seed', None)
-
-    xtra_tags = (
-        [tag.strip() for tag in wandb_tags_raw.split(",") if tag.strip()]
-        if wandb_tags_raw
-        else []
-    )
-
-    msg = f"""
-$$$ Using configuration file: {cfg_path}
-    Sweep tags: {xtra_tags}
-    Sweep overrides → Token budget: {override_token_budget}, peak_lr: {override_peak_lr}
-    warmup_frac: {override_warmup_frac}, seed: {override_seed}, weight_decay: {override_weight_decay},
-    num_batches: {override_num_batches}, best_ckpt: {override_best_ckpt}, eval_seed: {override_eval_seed}
-"""
-    print(msg.strip())
-
-
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
     raw['run']['device'] = resolve_device(raw['run']['device'])
     raw['my_path'] = cfg_path
-    raw['wandb']['tags'] = xtra_tags
+
+    overrides = get_overrides(args) if args is not None else {}
+    wandb_tags = []
 
     # overrider peak learning rate
+    override_peak_lr = overrides['peak_lr']
     if override_peak_lr is not None:
         raw['optimizer']['lr'] = override_peak_lr
         raw['scheduler']['maxrate'] = override_peak_lr
         raw['scheduler']['minrate'] = 0.1 * override_peak_lr
+        wandb_tags.append(f"lr{override_peak_lr}")
 
+    override_warmup_frac = overrides['warmup_frac']
     if override_warmup_frac is not None:
         raw['scheduler']['warmup_frac'] = override_warmup_frac
+        wandb_tags.append(f"warmup_frac{override_warmup_frac}")
 
+    override_seed = overrides['seed']
     if override_seed is not None:
         raw['run']['seed'] = override_seed
+        wandb_tags.append(f"seed{override_seed}")
 
+    override_weight_decay = overrides['weight_decay']
     if override_weight_decay is not None:
         raw['optimizer']['weight_decay'] = override_weight_decay
+        wandb_tags.append(f"weight_decay{override_weight_decay}")
 
+    override_num_batches = overrides['num_batches']
     if override_num_batches is not None:
         raw['eval']['num_batches'] = override_num_batches
+        wandb_tags.append(f"eval_num_batches{override_num_batches}")
 
+    override_best_ckpt = overrides['best_path'] # for stand-alone eval script, for computing robust validation loss
     if override_best_ckpt is not None:
         raw['eval']['best_ckpt'] = override_best_ckpt
+        wandb_tags.append(f"best_ckpt{override_best_ckpt}")
 
+    override_eval_seed = overrides['eval_seed']
     if override_eval_seed is not None:
         raw['eval']['eval_seed'] = override_eval_seed
+        wandb_tags.append(f"eval_seed{override_eval_seed}")
 
-    token_budget=TokenBudget.from_arg(override_token_budget).value if override_token_budget is not None else 0
+    override_token_budget = overrides['token_budget']
+    if override_token_budget is not None:
+        wandb_tags.append(f"token_budget{override_token_budget}")
+        token_budget=TokenBudget.from_arg(override_token_budget).value
+    else:
+        token_budget = 0
     dd = {
         'wandb_name': '',
         'runs_folder': ''
@@ -190,6 +184,23 @@ $$$ Using configuration file: {cfg_path}
     dd['wandb_name'] = resolve_wandb_name(config)
     dd['runs_folder'] = resolve_runs_folder(config)
     return raw, config
+
+
+def get_overrides(args):
+    overrides = {
+        "token_budget": getattr(args, "token_budget", None),
+        "peak_lr": getattr(args, "peak_lr", None),
+        "warmup_frac": getattr(args, "warmup_frac", None),
+        "seed": getattr(args, "seed", None),
+        "weight_decay": getattr(args, "weight_decay", None),
+
+        "num_batches": getattr(args, "num_batches", None),
+        "best_path": getattr(args, "best_path", None),
+        "eval_seed": getattr(args, "eval_seed", None),
+    }
+
+    print("Overrides:", overrides)
+    return overrides
 
 def resolve_device(requested: str) -> str:
     if requested != 'auto':
