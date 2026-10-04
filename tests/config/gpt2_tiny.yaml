@@ -64,7 +64,7 @@ gen:
 wandb:
   enabled: True
   proj_name: zzablate-pos-embed
-  tags: []
+  tags: ['baseline', 'tinystories']
   active: plain
   name_templates:
     seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
