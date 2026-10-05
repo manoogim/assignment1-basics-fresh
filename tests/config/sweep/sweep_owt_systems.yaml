@@ -14,7 +14,7 @@ command:
   - ${interpreter}
   - "-m"
   - tests.nn_train
-  - "--config=tests/config/gpt2_tiny.yaml"
+  - "--config=tests/config/abla_batch/cs336_owt.yaml"
   - ${args}
 
 # uv run wandb sweep --project zzsweep --entity manoogim-personal tests/config/sweep/sweep_zz.yaml 
