@@ -5,16 +5,9 @@ import psutil
 import torch
 import wandb
 
-from tests.nn_utils import compute_safe_ppl
+from tests.nn_utils import calc_eta, compute_safe_ppl, fmt_hms
 from tests.nn_yaml import Config, load_yaml_config
 from tests.upload_artifact import build_metadata, upload_artifact
-
-def fmt_hms( seconds):
-    if seconds <= 0:
-        return "--:--:--"
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
 
 class LastUpdate(NamedTuple):
     step: int
@@ -25,6 +18,7 @@ class LastUpdate(NamedTuple):
     throughput_tokens_per_second: float
     runtime_seconds: float
     eta_seconds: float
+    eta_seconds_dbg: float | None
     lr: float
     grad_norm: float
     rss_gb: float
@@ -39,12 +33,13 @@ wandb.log({"optim_step": step, "train/loss": loss, "val/loss": val, "tokens_seen
     """
     def render(self) -> str:
         load_fraction_time = self.load_time / self.runtime_seconds if self.runtime_seconds > 0 else 0.0
+        eta_dbg = f'eta_dbg={fmt_hms(self.eta_seconds_dbg)}' if self.eta_seconds_dbg is not None else ''
         return (
             f"[{self.step}] loss={self.loss:.4f} | min_loss={self.min_window_loss:.4f} | ppl={compute_safe_ppl(self.loss):.2f}\n"
             f"      lr={self.lr:.8f} grad_norm={self.grad_norm:.4f}\n"
             f"      throughput={self.throughput_tokens_per_second:.1f} tokens/sec\n"
             f"      tokens_processed={self.tokens_processed:_}\n"
-            f"      elapsed={fmt_hms(self.runtime_seconds)} eta={fmt_hms(self.eta_seconds)}\n"
+            f"      elapsed={fmt_hms(self.runtime_seconds)} | eta={fmt_hms(self.eta_seconds)} | {eta_dbg} \n"
             f"      rss={self.rss_gb:.2f}GB | load_wait_time={self.load_time:.2f}s | load_time_fraction={load_fraction_time:.2%}"
         )
 
@@ -70,6 +65,10 @@ class StatusTracker:
         self.total_token_budget = config.token_budget
         self.avg_window = config.run.avg_window
 
+        if config.run.num_steps_dbg is not None:
+            self.dbg_token_budget = config.token_budget * config.run.num_steps_dbg / total_steps
+        else:
+            self.dbg_token_budget = None
         self.loss_history = []
         self.start_time = time.time()
         self.min_loss = float('inf')
@@ -130,26 +129,29 @@ class StatusTracker:
         run_tokens = tokens_processed_lifetime - self.initial_tokens_processed      
         run_throughput = run_tokens / run_time
 
-        if self.last_update is not None:
+        if self.last_update is not None and self.last_update.step == step:
+            # edge case when final step coincides with the last loop pass
+            window_throughput = self.last_update.throughput_tokens_per_second
+        elif self.last_update is not None:
             window_seconds = now - self.last_update.time
             window_tokens = tokens_processed_lifetime - self.last_update.tokens_processed
             window_throughput = window_tokens / window_seconds if window_seconds > 0 else 0.0
         else:
             window_throughput = run_throughput
         # ETA
-        remaining_tokens = (self.total_token_budget - tokens_processed_lifetime)
-        eta_seconds = remaining_tokens / window_throughput if window_throughput > 0 else 0.0
-
+        eta_seconds = calc_eta(self.total_token_budget, tokens_processed_lifetime, window_throughput)
+        eta_seconds_dbg = calc_eta(self.dbg_token_budget, tokens_processed_lifetime, window_throughput) if self.dbg_token_budget is not None else None
+ 
         # remember for the final run summary / metadata and print periodic status
         self.last_update = LastUpdate(step=step, time=now, loss=loss, min_window_loss=self.min_loss,
                                       tokens_processed=tokens_processed_lifetime,throughput_tokens_per_second=window_throughput, 
-                                      runtime_seconds=run_time, eta_seconds=eta_seconds, lr = lr, grad_norm=grad_norm, rss_gb=self._rss(), load_time=load_time)
+                                      runtime_seconds=run_time, eta_seconds=eta_seconds, eta_seconds_dbg=eta_seconds_dbg, lr = lr, grad_norm=grad_norm, rss_gb=self._rss(), load_time=load_time)
         upd_msg = self.last_update.render()
         print(upd_msg)
        
         if self.wandb is not None:
             self.wandb.log({'stats': self.last_update.as_dict()}, step=step)
-
+    
     def update_checkpoint(self, step, ckpt_path, is_best=False):
         size_mb = os.path.getsize(ckpt_path) / (1024 * 1024)
 

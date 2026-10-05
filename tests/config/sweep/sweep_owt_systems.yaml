@@ -1,4 +1,4 @@
-name: mb-screen-s1024-eb128-u200
+name: mb-screen-s1024-eb128-u3
 method: grid
 
 metric:
@@ -7,7 +7,9 @@ metric:
 
 parameters:
   grad_accum:
-    values: [32, 16, 8]
+    values: [ 16, 8]
+  forward_mode: 
+    value: checkpoint
 
 command:
   - ${env}

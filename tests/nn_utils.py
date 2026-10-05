@@ -260,3 +260,15 @@ def plant_seed (seed):
     g = torch.Generator()
     g.manual_seed(seed)
     return g
+
+def fmt_hms( seconds):
+    if seconds <= 0:
+        return "--:--:--"
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
+
+def calc_eta( tokens_budget, tokens_processed, window_throughput):
+    remaining_tokens = tokens_budget - tokens_processed
+    eta_seconds = remaining_tokens / window_throughput if window_throughput > 0 else 0.0 
+    return eta_seconds

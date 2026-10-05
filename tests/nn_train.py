@@ -191,7 +191,8 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {config.token_budget:_}. Now training stops!')
             keep_training = False
 
-        if config.run.num_steps_dbg is not None and step >= config.run.num_steps_dbg:
+        if config.run.num_steps_dbg is not None and step >= start_step + config.run.num_steps_dbg:
+            StatusTracker.log( f"Completed {config.run.num_steps_dbg:_} debug updates. Now training stops!" )
             keep_training = False
 
         if not keep_training:
@@ -233,6 +234,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--seed', type=int, help="Prime number to control randomness")
     parser.add_argument('-ga', '--grad_accum', type=int, help="Number of gradient accumulation steps")
     parser.add_argument('-wd', '--weight_decay', type=float, help="Optimizers weight decay factor")
+    parser.add_argument('-fm', '--forward_mode', type=str, help='Activation checkpointing: plain | checkpoint (case-insensitive)')
     args = parser.parse_args()
     
     main(args)

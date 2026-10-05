@@ -177,6 +177,11 @@ def load_yaml_config(cfg_path, args=None):
 
     raw['wandb']['tags'] = wandb_tags if len(wandb_tags) > 0 else None
 
+    override_forward_mode = overrides.get('forward_mode', None)
+    if override_forward_mode is not None:
+        raw['model']['forward_mode'] = override_forward_mode
+        wandb_tags.append(f'forward_mode{override_forward_mode}')
+        
     dd = {
         'wandb_name': '',
         'runs_folder': ''
@@ -210,7 +215,8 @@ def get_overrides(args):
         "num_batches": getattr(args, "num_batches", None),
         "best_path": getattr(args, "best_path", None),
         "eval_seed": getattr(args, "eval_seed", None),
-        "grad_accum": getattr(args, "grad_accum", None)
+        "grad_accum": getattr(args, "grad_accum", None),
+        "forward_mode": getattr(args, "forward_mode" , None  )
     }
 
     print("Overrides:", overrides)
