@@ -30,7 +30,7 @@ scheduler:
   maxrate: 0.0055
 
 data:
-  tokens_folder: '/kaggle/input/datasets/melissamanoog/out/owt'
+  tokens_folder: '/kaggle/input/datasets/melissamanoog/tokens-owt/out/owt'
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
