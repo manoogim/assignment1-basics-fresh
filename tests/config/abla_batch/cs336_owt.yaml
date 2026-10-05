@@ -1,5 +1,5 @@
 model:
-  vocab_size: 50_257
+  vocab_size: 32_000
   seq_len: 1024
   d_model: 768
   d_ff: 2048
