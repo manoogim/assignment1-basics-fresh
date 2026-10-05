@@ -33,6 +33,7 @@ class ModelConfig(NamedTuple):
     d_ff: int
     num_layers: int
     num_heads: int
+    forward_mode: str = 'plain'  # plain | checkpoint
 
 class OptimizerConfig(NamedTuple):
     type: str
@@ -165,6 +166,17 @@ def load_yaml_config(cfg_path, args=None):
         token_budget=TokenBudget.from_arg(override_token_budget).value
     else:
         token_budget = 0
+
+    override_grad_accum = overrides.get('grad_accum', None)
+    if override_grad_accum is not None:
+        raw['train']['grad_accum'] = override_grad_accum
+        
+        micro_batch_size = raw['train']['batch_size'] // override_grad_accum
+        wandb_tags.append(f"grad_accum{override_grad_accum}")
+        wandb_tags.append(f"micro_batch_size{micro_batch_size}")
+
+    raw['wandb']['tags'] = wandb_tags if len(wandb_tags) > 0 else None
+
     dd = {
         'wandb_name': '',
         'runs_folder': ''
@@ -198,6 +210,7 @@ def get_overrides(args):
         "num_batches": getattr(args, "num_batches", None),
         "best_path": getattr(args, "best_path", None),
         "eval_seed": getattr(args, "eval_seed", None),
+        "grad_accum": getattr(args, "grad_accum", None)
     }
 
     print("Overrides:", overrides)

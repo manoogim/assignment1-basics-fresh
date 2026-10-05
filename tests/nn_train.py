@@ -138,20 +138,27 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
     accum = config.train.grad_accum
     assert config.train.batch_size % accum == 0, f'batch_size {config.train.batch_size} must be divisible by grad_accum {accum}'
     micro_batch = config.train.batch_size // accum          # integer
+
     # step is the OPTIMIZER step index and starts at start_step (matters on resume)
     step, lr, grad_norm = start_step, 0, 0
     mean_loss = torch.zeros(())                              # last completed step's mean loss
     loss_sum = 0.0                                           # becomes a tensor after first add
+    load_time = 0.0
+
     keep_training = True
 
     optim.zero_grad()
     for micro_step in itertools.count():                     # boundary test is relative, so no start offset
+
+        start_load = time.perf_counter()
         input_tokens, output_tokens = get_batch(training_tokens, micro_batch, config.model.seq_len, training_generator, config.run.device)
+        load_time = load_time + (time.perf_counter() - start_load)  # for logging only, not used in any calculations
+
         tokens_processed += input_tokens.numel()
 
         raw_loss = compute_loss(llm, input_tokens, output_tokens)
         (raw_loss / accum).backward()                        # scale only for the gradient
-        loss_sum = loss_sum + raw_loss.detach()              # log the UNscaled loss
+        loss_sum = loss_sum + raw_loss.detach()              # for logging
 
         if (micro_step + 1) % accum != 0:                    # window not complete yet
             continue
@@ -164,11 +171,10 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
         optim.zero_grad()
 
         mean_loss = loss_sum / accum                         # mean over the window
-        loss_sum = 0.0
 
         log_now = is_cadence_hit(step, config.run.log_every_steps)
         if log_now:
-            tracker.update(step, mean_loss.item(), lr, grad_norm, tokens_processed )
+            tracker.update(step, mean_loss.item(), lr, grad_norm, tokens_processed, load_time)
 
         eval_now = is_cadence_hit( step, config.eval.eval_every_steps)
         if eval_now:
@@ -192,11 +198,13 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
             break   
 
         step += 1
+        loss_sum = 0.0
+        load_time = 0.0
 
     tracker.log('Training loop completed. Reporting final loss metrics, and computing final validation loss and uploading best artifact')
     # always print everything at the end 
     # since we are saving periodic checkpoints for the purpose of continuation in case of crash, and this is the end, there is no need to save the final checkpoint
-    tracker.update(step, mean_loss.item(), lr, grad_norm, tokens_processed)
+    tracker.update(step, mean_loss.item(), lr, grad_norm, tokens_processed, load_time)
 
     # save best  checkpoint and upload artifact
     # on the slim chance last step was the best this line would be repeating the same work: calc validation  loss, if best 
@@ -223,6 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('-tb', '--token_budget', type=str, default='extra-small', help="Token budget: 'xs'/'extra-small' or 's'/'small' or 'l'/'large' or 'm'/'medium'")
     parser.add_argument('-wf', '--warmup_frac', type=float, help="Warmup frac of cosine annealing")
     parser.add_argument('-s', '--seed', type=int, help="Prime number to control randomness")
+    parser.add_argument('-ga', '--grad_accum', type=int, help="Number of gradient accumulation steps")
     parser.add_argument('-wd', '--weight_decay', type=float, help="Optimizers weight decay factor")
     args = parser.parse_args()
     

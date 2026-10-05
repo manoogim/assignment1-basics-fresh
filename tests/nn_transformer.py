@@ -8,6 +8,22 @@ from tests.nn_linear import MyLinear
 from tests.nn_norm import MyRmsNorm
 from tests.nn_yaml import  ModelConfig
 
+import torch.utils.checkpoint as checkpoint
+from enum import Enum
+
+class ForwardMode(Enum):
+    PLAIN = lambda block, x: block(x)
+    CHECKPOINT = lambda block, x: checkpoint.checkpoint(block, x, use_reentrant=False)
+
+    @classmethod
+    def from_arg(cls, arg: str ) :
+        a = arg.upper().strip()
+        if a == 'PLAIN':
+            return cls.PLAIN
+        elif a == 'CHECKPOINT':
+            return cls.CHECKPOINT
+        else:
+            raise ValueError(f"Invalid forward mode: {arg}")
 
 class MyTransformer(nn.Module):
     def __init__(self, 
@@ -17,6 +33,7 @@ class MyTransformer(nn.Module):
                  d_model: int, 
                  num_heads: int, 
                  d_ff: int,
+                 forward_mode: str,
                  eps: float = 0.00001, 
                  theta: float = 10_000,                 
                  device = None, dtype = None):
@@ -31,16 +48,21 @@ class MyTransformer(nn.Module):
 
         self.lm_head = MyLinear(d_model, vocab_size, device, dtype)
 
+        self.forward_mode = ForwardMode.from_arg(forward_mode)
+
         # will be used for reporting only
         self.num_params = sum(p.numel() for p in self.parameters())
 
     @classmethod
     def from_config(cls, dd: ModelConfig, device):
-        return cls(dd.vocab_size, dd.num_layers, dd.seq_len, dd.d_model, dd.num_heads, dd.d_ff, device=device)
+        return cls(dd.vocab_size, dd.num_layers, dd.seq_len, dd.d_model, dd.num_heads, dd.d_ff, dd.forward_mode, device=device)
     
     def forward(self, in_tokens: Int[torch.Tensor, 'batch_size seq_len']) -> Float[torch.Tensor, 'batch_size seq_len vocab_size']:
         x = self.input_embedding(in_tokens)
-        x = self.norm(self.blocks(x))
+
+        for block in self.blocks:
+            x = self.forward_mode(block, x)
+        x = self.norm(x)
 
         logits = self.lm_head(x)
 

@@ -28,6 +28,7 @@ class LastUpdate(NamedTuple):
     lr: float
     grad_norm: float
     rss_gb: float
+    load_time: float
 
     def as_dict(self):
         return self._asdict()
@@ -37,13 +38,14 @@ wandb.define_metric("*", step_metric="optim_step")
 wandb.log({"optim_step": step, "train/loss": loss, "val/loss": val, "tokens_seen": tokens}, commit=True)
     """
     def render(self) -> str:
+        load_fraction_time = self.load_time / self.runtime_seconds if self.runtime_seconds > 0 else 0.0
         return (
             f"[{self.step}] loss={self.loss:.4f} | min_loss={self.min_window_loss:.4f} | ppl={compute_safe_ppl(self.loss):.2f}\n"
             f"      lr={self.lr:.8f} grad_norm={self.grad_norm:.4f}\n"
             f"      throughput={self.throughput_tokens_per_second:.1f} tokens/sec\n"
             f"      tokens_processed={self.tokens_processed:_}\n"
             f"      elapsed={fmt_hms(self.runtime_seconds)} eta={fmt_hms(self.eta_seconds)}\n"
-            f"      rss={self.rss_gb:.2f}GB"
+            f"      rss={self.rss_gb:.2f}GB | load_wait_time={self.load_time:.2f}s | load_time_fraction={load_fraction_time:.2%}"
         )
 
 class BestValidationLoss(NamedTuple):
@@ -108,7 +110,7 @@ class StatusTracker:
     def log(cls, msg):
         print(f'@@@ {msg} !!!')
 
-    def update(self, step, loss, lr, grad_norm, tokens_processed_lifetime):
+    def update(self, step, loss, lr, grad_norm, tokens_processed_lifetime, load_time):
         # Track loss
         self.loss_history.append(loss)
         if len(self.loss_history) > self.avg_window:
@@ -141,7 +143,7 @@ class StatusTracker:
         # remember for the final run summary / metadata and print periodic status
         self.last_update = LastUpdate(step=step, time=now, loss=loss, min_window_loss=self.min_loss,
                                       tokens_processed=tokens_processed_lifetime,throughput_tokens_per_second=window_throughput, 
-                                      runtime_seconds=run_time, eta_seconds=eta_seconds, lr = lr, grad_norm=grad_norm, rss_gb=self._rss())
+                                      runtime_seconds=run_time, eta_seconds=eta_seconds, lr = lr, grad_norm=grad_norm, rss_gb=self._rss(), load_time=load_time)
         upd_msg = self.last_update.render()
         print(upd_msg)
        
