@@ -72,4 +72,4 @@ wandb:
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
     roped: '{config.wandb.proj_name}{config.run.seed}_rms_rope_lr{config.scheduler.maxrate}'
     plain: '{config.wandb.proj_name}'
-    systems: 's{config.model.seq_len}-eb{config.train.batch_size}-ga{config.train.grad_accum}-u200'
+    systems: 's{config.model.seq_len}-eb{config.train.batch_size}-ga{config.train.grad_accum}-u70'
