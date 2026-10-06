@@ -140,8 +140,9 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
     # step is the OPTIMIZER step index and starts at start_step (matters on resume)
     step, lr, grad_norm = start_step, 0, 0
-    mean_loss, loss_sum = torch.zeros(()), 0.0
-
+    mean_loss, loss_sum, load_time = torch.zeros(()), 0.0, 0.0
+    
+    optim.zero_grad()
     keep_training = True
 
     for micro_step in itertools.count():                     # boundary test is relative, so no start offset
