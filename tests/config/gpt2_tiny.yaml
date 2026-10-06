@@ -42,7 +42,7 @@ run:
   save_every_steps: 2     # how often to save checkpoints stats
   log_every_steps: 1   # how often to log stats
   keep_last_ckpts: 2   # will keep this many files on disk
-  resume_from: null #runs/zzcheckpoints-tinystoriess29_ga2_40mm_b32/ckpt_b.pt    # name of ckpt resume from or null to start frpom 0
+  resume_from: artifacts/last_ckpt.pt  #runs/zzcheckpoints-tinystoriess29_ga2_40mm_b32/ckpt_b.pt    # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
 
 eval:

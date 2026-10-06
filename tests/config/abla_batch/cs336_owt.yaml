@@ -41,7 +41,7 @@ run:
   save_every_steps: 50  # how often to save checkpoints stats
   log_every_steps: 10   # how often to log stats
   keep_last_ckpts: 4   # will keep this many files on disk
-  resume_from: null    # name of ckpt resume from or null if starting from 0
+  resume_from: runs/owt_learning29_128_ga32_lr0.0055_327mm_b128/ckpt_d.pt    # name of ckpt resume from or null if starting from 0
   avg_window: 100       # for computing running avg loss 
 
 eval:
