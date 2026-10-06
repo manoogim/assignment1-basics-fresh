@@ -1,5 +1,6 @@
 import os
 import random
+import time
 from typing import Tuple
 import typing
 
@@ -9,7 +10,8 @@ from jaxtyping import Int
 from torch import nn
 
 
-def get_batch(x, batch_size, ctx_len, g: torch.Generator = None, device=None) -> Tuple[Int[torch.Tensor, 'batch_size ctx_len'], Int[torch.Tensor, 'batch_size ctx_len']]:
+def get_batch(x, batch_size, ctx_len, g: torch.Generator = None, device=None) -> Tuple[Int[torch.Tensor, 'batch_size ctx_len'], Int[torch.Tensor, 'batch_size ctx_len'], float]:
+    start_load = time.perf_counter()
     max_start = len(x) - ctx_len - 1
     if max_start < 0:
         raise ValueError(f'Not enough elements: {len(x)} cannot support matrix {batch_size} x {ctx_len}')
@@ -31,15 +33,16 @@ def get_batch(x, batch_size, ctx_len, g: torch.Generator = None, device=None) ->
         outputs.append(ids[1:])
     # converting type from uint16 to int32 for lookups is mandatory, otherwise torch will throw an error when trying to index with uint16
     #  wraping [] with numpy.array is recommended to avoid torch warning about creating tensor from list of numpy arrays
-    result = torch.tensor(numpy.array(inputs), device=device, dtype=torch.int32), torch.tensor(numpy.array(outputs), device=device, dtype=torch.int32)
+    load_time = time.perf_counter() - start_load
+    result = torch.tensor(numpy.array(inputs), device=device, dtype=torch.int32), torch.tensor(numpy.array(outputs), device=device, dtype=torch.int32), load_time   
     return result
 
 def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteration:int, out_path: str, sched_info: dict = {} ):
     obj = {}
     obj['iteration'] = iteration
+    obj['sched_info'] = sched_info
     obj['model_state'] = model.state_dict()
     obj['adamw_state'] = optimizer.state_dict()
-    obj['sched_info'] = sched_info
 
     # save to tmp and atomically rename 
     tmp_path = out_path + '.tmp'

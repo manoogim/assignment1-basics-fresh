@@ -9,16 +9,14 @@ model:
 
 optimizer:
   type: adamw
-  lr: 0.0055
   weight_decay: 0.1
   betas: [0.9, 0.95]
   eps: 1.e-8
 
-
 train:
   batch_size: 128
-  grad_accum: 1        
-  datatype: float32     # CPU-friendly
+  grad_accum: 32        
+  precision: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
 
@@ -34,14 +32,14 @@ data:
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
-  ckpt_best_below: 1.0
-  num_steps_dbg: 70
+  ckpt_best_below: 3.0
+  num_steps_dbg: null
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 29
   out_prefix: runs/
-  save_every_steps: 10000  # how often to save checkpoints stats
+  save_every_steps: 50  # how often to save checkpoints stats
   log_every_steps: 10   # how often to log stats
-  keep_last_ckpts: 1   # will keep this many files on disk
+  keep_last_ckpts: 4   # will keep this many files on disk
   resume_from: null    # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
 
@@ -64,12 +62,12 @@ gen:
 
 wandb:
   enabled: True
-  proj_name: openwebtext_systems
+  proj_name: owt_learning
   tags: null
-  active: systems
+  active: seeded
   name_templates:
-    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
+    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}_ga{config.train.grad_accum}'
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
     roped: '{config.wandb.proj_name}{config.run.seed}_rms_rope_lr{config.scheduler.maxrate}'
     plain: '{config.wandb.proj_name}'
-    systems: 's{config.model.seq_len}-eb{config.train.batch_size}-ga{config.train.grad_accum}-u70'
+    systems: 's{config.model.seq_len}-eb{config.train.batch_size}-ga{config.train.grad_accum}-u{condig.run.num_steps_dbg}'

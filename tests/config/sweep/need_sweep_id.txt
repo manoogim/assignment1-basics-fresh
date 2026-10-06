@@ -28,3 +28,9 @@ batch size and seed
 
 After finding the best peak LR, 
 a useful second sweep would vary warmup_frac, for example [0.01, 0.02, 0.04]. I would not sweep minrate until peak LR and warmup are settled.
+
+
+You can distinguish a type-checker warning from a real runtime problem with:
+print(torch.__version__)
+print(hasattr(torch, "GradScaler"))
+print(hasattr(torch.amp, "GradScaler"))

@@ -4,9 +4,10 @@ import torch
 
 
 class MyAdamW(torch.optim.Optimizer):
-    def __init__(self, params, lr=1e-3, weight_decay=1e-2, betas = (0.9, 0.999), eps= 1e-8):
-        if lr < 0:
-            raise ValueError(f"Invalid learning rate: {lr}")
+    def __init__(self, params, init_lr, weight_decay=1e-2, betas = (0.9, 0.999), eps= 1e-8):
+        # caller has to deliberately set learnig rate
+        if init_lr is not None and init_lr < 0:
+            raise ValueError(f"Invalid learning rate: {init_lr}")
         if not 0.0 <= betas[0] < 1.0:
             raise ValueError(f"Invalid beta1: {betas[0]}")
         if not 0.0 <= betas[1] < 1.0:
@@ -15,7 +16,7 @@ class MyAdamW(torch.optim.Optimizer):
             raise ValueError('Epsilon is negative: {eps}')
 
         defaults = {
-            'alpha': lr,
+            'alpha': init_lr,
             'lambda_decay': weight_decay,
             'beta1': betas[0],
             'beta2': betas[1],

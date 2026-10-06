@@ -1,15 +1,14 @@
 model:
   vocab_size: 10_000
   seq_len: 256
-  d_model: 512
-  d_ff: 1344
+  d_model: 256
+  d_ff: 1024
   num_layers: 4
-  num_heads: 16
+  num_heads: 4
   forward_mode: plain
 
 optimizer:
   type: adamw
-  lr: 0.0055
   weight_decay: 0.1
   betas: [0.9, 0.95]
   eps: 1.e-8
@@ -17,8 +16,8 @@ optimizer:
 
 train:
   batch_size: 32
-  grad_accum: 8        
-  datatype: float32     # CPU-friendly
+  grad_accum: 2        
+  precision: float32     # CPU-friendly
   max_norm: 1.0
   grad_eps: 1.0e-6
 
@@ -35,14 +34,14 @@ data:
 
 run:
   ckpt_best_below: 2.0
-  num_steps_dbg: 3
+  num_steps_dbg: 10
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 29
   out_prefix: runs/
-  save_every_steps: 2000  # how often to save checkpoints stats
+  save_every_steps: 2     # how often to save checkpoints stats
   log_every_steps: 1   # how often to log stats
-  keep_last_ckpts: 1   # will keep this many files on disk
-  resume_from: null    # name of ckpt resume from or null to start frpom 0
+  keep_last_ckpts: 2   # will keep this many files on disk
+  resume_from: runs/zzcheckpoints-tinystoriess29_ga2_40mm_b32/ckpt_b.pt    # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
 
 eval:
@@ -64,11 +63,11 @@ gen:
 
 wandb:
   enabled: True
-  proj_name: zzablate-pos-embed
-  tags: ['baseline', 'tinystories']
-  active: systems
+  proj_name: zzzzcheckpoints-tinystorieszz77
+  tags: ['baseline', 'tinystories', 'checkpoints']
+  active: seeded
   name_templates:
-    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}'
+    seeded: '{config.wandb.proj_name}s{config.run.seed}_ga{config.train.grad_accum}'
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
     roped: '{config.wandb.proj_name}{config.run.seed}_rms_rope_lr{config.scheduler.maxrate}'
     plain: '{config.wandb.proj_name}'

@@ -37,7 +37,6 @@ class ModelConfig(NamedTuple):
 
 class OptimizerConfig(NamedTuple):
     type: str
-    lr: float
     weight_decay: float
     betas: tuple[float, float]
     eps: float
@@ -45,7 +44,7 @@ class OptimizerConfig(NamedTuple):
 class TrainConfig(NamedTuple):
     batch_size: int
     grad_accum: int
-    datatype: str       # # float32 is CPU-friendly, float16 is GPU-friendly, bfloat16 is TPU-friendly
+    precision: str       # # float32 is CPU-friendly, float16 is GPU-friendly, bfloat16 is TPU-friendly
     max_norm: float
     grad_eps: float
 
@@ -114,10 +113,13 @@ def load_yaml_config(cfg_path, args=None):
     This loads config objects from yaml, and combines with optional overrides.
     Names of overrideable params are combined from training workflow and eval workflow
     """    
+    
     with open(cfg_path) as f:
         raw = yaml.safe_load(f)
-    raw['run']['device'] = resolve_device(raw['run']['device'])
-    raw['my_path'] = cfg_path
+        raw['my_path'] = cfg_path
+
+    device = resolve_device(raw['run']['device'])
+    raw['run']['device'] = device
 
     overrides = get_overrides(args) if args is not None else {}
     wandb_tags = []
@@ -125,7 +127,6 @@ def load_yaml_config(cfg_path, args=None):
     # overrider peak learning rate
     override_peak_lr = overrides.get('peak_lr', None)
     if override_peak_lr is not None:
-        raw['optimizer']['lr'] = override_peak_lr
         raw['scheduler']['maxrate'] = override_peak_lr
         raw['scheduler']['minrate'] = 0.1 * override_peak_lr
         wandb_tags.append(f"lr{override_peak_lr}")
@@ -201,6 +202,12 @@ def load_yaml_config(cfg_path, args=None):
     )
     dd['wandb_name'] = resolve_wandb_name(config)
     dd['runs_folder'] = resolve_runs_folder(config)
+
+    # validations
+    accum = config.train.grad_accum
+    assert config.train.batch_size % accum == 0, f'batch_size {config.train.batch_size} must be divisible by grad_accum {accum}'
+    assert (config.run.num_steps_dbg is None )or (config.run.num_steps_dbg % accum == 0), f'num_steps_dbg: {config.run.num_steps_dbg} is not divisible by gard_acucum: {accum}'
+    
     return raw, config
 
 
@@ -222,14 +229,16 @@ def get_overrides(args):
     print("Overrides:", overrides)
     return overrides
 
-def resolve_device(requested: str) -> str:
+def resolve_device(requested: str):
     if requested != 'auto':
-        return requested
-    if torch.cuda.is_available():
-        return 'cuda'
-    if torch.backends.mps.is_available():
-        return 'mps'
-    return 'cpu'
+        result= requested
+    elif torch.cuda.is_available():
+        result = 'cuda'
+    elif torch.backends.mps.is_available():
+        result = 'mps'
+    else:
+        result = 'cpu'
+    return result
 
 def resolve_runs_folder(config: Config) -> str:
     prefix = f'{config.run.out_prefix}{resolve_wandb_name(config)}'

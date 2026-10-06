@@ -29,7 +29,7 @@ def build_model(config):
 
 def build_optimizer(params, config: Config):
     dd = config.optimizer
-    optim = MyAdamW(params, dd.lr, dd.weight_decay, dd.betas, dd.eps)
+    optim = MyAdamW(params, None, dd.weight_decay, dd.betas, dd.eps)
     StatusTracker.log(f'Created AdamW optimizer from: {dd}')
     return optim
 
@@ -84,18 +84,17 @@ def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MySche
     save_checkpoint(model, optimizer,  iteration, out_path, sched_info)
     return out_path
 
-def init_run_state(model, optimizer, config: Config, total_steps) -> tuple[int,int,MyScheduler]:
-    cpt = config.run.resume_from
-    if cpt is not None:
-        StatusTracker.log(f'Resuming from checkpoint {cpt}')
-        output_dir = config.dict['runs_folder']
-        src = os.path.join(output_dir, cpt)        
-        if not os.path.exists(src):
-            raise Exception(f'Checkpoint not loaded - file does not exist: {src}')
-        step, sched_info = load_checkpoint(src, model, optimizer,  config.run.device)
+def init_run_state(model, optimizer: MyAdamW, config: Config, total_steps) -> tuple[int,int,MyScheduler]:
+    cpt_path = config.run.resume_from
+    if cpt_path is not None:
+        StatusTracker.log(f'Resuming from checkpoint {cpt_path}')
+        if not os.path.exists(cpt_path):
+            raise Exception(f'Checkpoint not loaded - file does not exist: {cpt_path}')
+        step, sched_info = load_checkpoint(cpt_path, model, optimizer,  config.run.device)
         next_step = step + 1
+        tokens_processed = sched_info['tokens_processed']
         sched = MyScheduler.from_state_dict(sched_info)
-        StatusTracker.log(f'Resuming from step: {step}, tokens processed: {sched_info["tokens_processed"]:_} from file: {src}. Keeping original lr schedule: {sched}')
+        StatusTracker.log(f'Resuming from step: {step}, tokens processed: {sched_info["tokens_processed"]:_} from file: {cpt_path}. Keeping original lr schedule: {sched}')
         # TODO - should we raise or soft warn if new config has different learning schedule
         if sched_info['batch_size'] != config.train.batch_size:
             StatusTracker.log(f"[INFO] Resuming with batch_size={config.train.batch_size}, "
@@ -106,7 +105,10 @@ def init_run_state(model, optimizer, config: Config, total_steps) -> tuple[int,i
         next_step = 0
         tokens_processed = 0
         sched = MyScheduler.from_config(config.scheduler, total_steps)
-        StatusTracker.log(f'Learning Schedule: {sched}')
+
+    init_lr = sched.calc_learning_rate(next_step)
+    optimizer.set_lr(init_lr)
+    StatusTracker.log(f'Learning Schedule: {sched}, init_lr={init_lr:.8f}')
 
     return next_step, tokens_processed, sched # type: ignore
 
@@ -133,27 +135,18 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
     training_tokens, validation_tokens = load_tokens(config)
 
-    # config.train.batch_size stays the EFFECTIVE batch size; add config.train.grad_accum (int, default 1).
-
     accum = config.train.grad_accum
-    assert config.train.batch_size % accum == 0, f'batch_size {config.train.batch_size} must be divisible by grad_accum {accum}'
     micro_batch = config.train.batch_size // accum          # integer
 
     # step is the OPTIMIZER step index and starts at start_step (matters on resume)
     step, lr, grad_norm = start_step, 0, 0
-    mean_loss = torch.zeros(())                              # last completed step's mean loss
-    loss_sum = 0.0                                           # becomes a tensor after first add
-    load_time = 0.0
+    mean_loss, loss_sum = torch.zeros(()), 0.0
 
     keep_training = True
 
-    optim.zero_grad()
     for micro_step in itertools.count():                     # boundary test is relative, so no start offset
 
-        start_load = time.perf_counter()
-        input_tokens, output_tokens = get_batch(training_tokens, micro_batch, config.model.seq_len, training_generator, config.run.device)
-        load_time = load_time + (time.perf_counter() - start_load)  # for logging only, not used in any calculations
-
+        input_tokens, output_tokens, load_time = get_batch(training_tokens, micro_batch, config.model.seq_len, training_generator, config.run.device)
         tokens_processed += input_tokens.numel()
 
         raw_loss = compute_loss(llm, input_tokens, output_tokens)
@@ -167,21 +160,17 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
         grad_norm = clip_gradient(llm.parameters(), config.train.max_norm, config.train.grad_eps)
         lr = sched.calc_learning_rate(step + 1)
         optim.set_lr(lr)
-        optim.step()
-        optim.zero_grad()
 
-        mean_loss = loss_sum / accum                         # mean over the window
+        # should we log_now = 
+        if is_cadence_hit(step, config.run.log_every_steps):
+            tracker.update(step, loss_sum.item(), lr, grad_norm, tokens_processed, load_time)
 
-        log_now = is_cadence_hit(step, config.run.log_every_steps)
-        if log_now:
-            tracker.update(step, mean_loss.item(), lr, grad_norm, tokens_processed, load_time)
-
-        eval_now = is_cadence_hit( step, config.eval.eval_every_steps)
-        if eval_now:
+        # should we eval_now = 
+        if is_cadence_hit( step, config.eval.eval_every_steps):
             maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens)
 
-        save_now = is_cadence_hit(step, config.run.save_every_steps)
-        if save_now:
+        # should we save checkpoint now = 
+        if is_cadence_hit(step, config.run.save_every_steps):
             ckpt_name = derive_ckpt_name(step, config.run.save_every_steps, config.run.keep_last_ckpts)
             ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, ckpt_name)
             tracker.update_checkpoint(step, ckpt_path)
@@ -191,7 +180,7 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {config.token_budget:_}. Now training stops!')
             keep_training = False
 
-        if config.run.num_steps_dbg is not None and step >= start_step + config.run.num_steps_dbg:
+        if config.run.num_steps_dbg is not None and step + 1 == start_step + config.run.num_steps_dbg:
             StatusTracker.log( f"Completed {config.run.num_steps_dbg:_} debug updates. Now training stops!" )
             keep_training = False
 
@@ -200,7 +189,6 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
         step += 1
         loss_sum = 0.0
-        load_time = 0.0
 
     tracker.log('Training loop completed. Reporting final loss metrics, and computing final validation loss and uploading best artifact')
     # always print everything at the end 

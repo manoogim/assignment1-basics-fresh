@@ -203,7 +203,7 @@ def calc_validation_loss(model, validation_tokens, eval_batch_size, seq_size, nu
     try:
         with torch.inference_mode():
             for _ in range(num_eval_batches):
-                input_tokens, output_tokens = get_batch(validation_tokens, eval_batch_size, seq_size, g, device)
+                input_tokens, output_tokens, _ = get_batch(validation_tokens, eval_batch_size, seq_size, g, device)
                 loss_sum, valid_tokens = compute_loss_sum(model, input_tokens, output_tokens)
                 batch_losses.append(loss_sum.item() / valid_tokens)
 
