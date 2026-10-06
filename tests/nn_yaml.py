@@ -207,7 +207,6 @@ def load_yaml_config(cfg_path, args=None):
     # validations
     accum = config.train.grad_accum
     assert config.train.batch_size % accum == 0, f'batch_size {config.train.batch_size} must be divisible by grad_accum {accum}'
-    assert (config.run.num_steps_dbg is None )or (config.run.num_steps_dbg % accum == 0), f'num_steps_dbg: {config.run.num_steps_dbg} is not divisible by gard_acucum: {accum}'
     
     return raw, config
 
