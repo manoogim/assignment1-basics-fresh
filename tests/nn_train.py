@@ -57,7 +57,7 @@ def load_tokens(config: Config):
     
     return result['tokens_train.bin'], result['tokens_valid.bin']
 
-def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker: StatusTracker, validation_tokens):
+def maybe_save_best(llm, optim, sched, generator: torch.Generator, step, tokens_processed, config, tracker: StatusTracker, validation_tokens):
     start = time.perf_counter()
     threshold = config.run.ckpt_best_below
     val_result, _ = calc_validation_loss(llm, validation_tokens, config.eval.batch_size, config.model.seq_len, config.eval.num_batches, config.eval.eval_seed, config.run.device)
@@ -66,11 +66,11 @@ def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker: 
 
     safe_to_save = new_best_val is not None and (threshold is None or new_best_val < threshold)
     if safe_to_save:
-        path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, 'best_ckpt.pt')
+        path = save_checkpoint_file(llm, optim, sched, generator, step, tokens_processed, config, tracker, 'best_ckpt.pt')
         tracker.update_checkpoint(step, path, 'BEST')
     return new_best_val
 
-def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, iteration, tokens_processed: int, config: Config, ckpt_name: str ):
+def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, generator: torch.Generator, iteration, tokens_processed: int, config: Config, tracker: StatusTracker, ckpt_name: str ):
     # validation of cpt suffix to ensure cpt will have a valid file name
     assert config.run.keep_last_ckpts <= 26, f'Numer of saved checkpoints cannot exceed 26, but got: {config.run.keep_last_ckpts}'
 
@@ -83,16 +83,17 @@ def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MySche
     sched_info['batch_size'] = config.train.batch_size
     sched_info['grad_accum'] = config.train.grad_accum
     sched_info['tokens_processed'] = tokens_processed
-    save_checkpoint(model, optimizer,  iteration, out_path, sched_info)
+    save_checkpoint(model, optimizer, generator, iteration, out_path, sched_info)
+    tracker.update_checkpoint(iteration, out_path, ckpt_name)
     return out_path
 
-def init_run_state(model, optimizer: MyAdamW, config: Config, total_steps) -> tuple[int,int,MyScheduler]:
+def init_run_state(model, optimizer: MyAdamW, generator: torch.Generator, config: Config, total_steps) -> tuple[int,int,MyScheduler]:
     cpt_path = config.run.resume_from
     if cpt_path is not None:
         StatusTracker.log(f'Resuming from checkpoint {cpt_path}')
         if not os.path.exists(cpt_path):
             raise Exception(f'Checkpoint not loaded - file does not exist: {cpt_path}')
-        step, sched_info = load_checkpoint(cpt_path, model, optimizer,  config.run.device)
+        step, sched_info = load_checkpoint(cpt_path, model, optimizer, generator, config.run.device)
         next_step = step + 1
         tokens_processed = sched_info['tokens_processed']
         sched = MyScheduler.from_state_dict(sched_info)
@@ -129,7 +130,7 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
     total_steps = calc_total_steps(config.train.batch_size, config.model.seq_len, config.token_budget)
 
-    start_step, tokens_processed, sched = init_run_state(llm, optim, config, total_steps)
+    start_step, tokens_processed, sched = init_run_state(llm, optim, training_generator, config, total_steps)
 
     tracker = StatusTracker(tokens_processed, total_steps, sched.as_dict(), raw_cfg, config, llm.num_params)
     msg=f"Total steps: {total_steps:_}, Total tokens budget: {config.token_budget:_}, effective batch size: {config.train.batch_size}, grad_accum: {config.train.grad_accum}, runs folder: {config.dict['runs_folder']} "
@@ -172,13 +173,12 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
         # should we eval_now = 
         if is_cadence_hit( step, config.eval.eval_every_steps):
-            maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens)
+            maybe_save_best(llm, optim, sched, training_generator, step, tokens_processed, config, tracker, validation_tokens)
 
         # should we save checkpoint now = 
         if is_cadence_hit(step, config.run.save_every_steps):
             ckpt_name = derive_ckpt_name(step, config.run.save_every_steps, config.run.keep_last_ckpts)
-            ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, ckpt_name)
-            tracker.update_checkpoint(step, ckpt_path, 'milestone')
+            ckpt_path = save_checkpoint_file(llm, optim, sched, training_generator, step, tokens_processed, config, tracker, ckpt_name)
 
         # stop only on optimizer-step boundaries, so `step` is the last completed step at break
         if tokens_processed >= config.token_budget:
@@ -202,11 +202,11 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
     # save best  checkpoint and upload artifact
     # on the slim chance last step was the best this line would be repeating the same work: calc validation  loss, if best 
-    maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens)
+    maybe_save_best(llm, optim, sched, training_generator, step, tokens_processed, config, tracker, validation_tokens)
 
     if config.run.save_last:
-        ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, 'last_ckpt.pt')
-        tracker.update_checkpoint(step, ckpt_path, 'last')
+        ckpt_path = save_checkpoint_file(llm, optim, sched, training_generator, step, tokens_processed, config, tracker, 'last_ckpt.pt')
+
     else:
         ckpt_path = None
 

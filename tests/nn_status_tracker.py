@@ -145,7 +145,8 @@ class StatusTracker:
         # remember for the final run summary / metadata and print periodic status
         self.last_update = LastUpdate(step=step, time=now, loss=loss, min_window_loss=self.min_loss,
                                       tokens_processed=tokens_processed_lifetime,throughput_tokens_per_second=window_throughput, 
-                                      runtime_seconds=run_time, eta_seconds=eta_seconds, eta_seconds_dbg=eta_seconds_dbg, lr = lr, grad_norm=grad_norm, rss_gb=self._rss(), load_time=load_time)
+                                      runtime_seconds=run_time, eta_seconds=eta_seconds, eta_seconds_dbg=eta_seconds_dbg, 
+                                      lr = lr, grad_norm=grad_norm, rss_gb=self._rss(), load_time=load_time)
         upd_msg = self.last_update.render()
         print(upd_msg)
        
@@ -156,7 +157,7 @@ class StatusTracker:
         size_mb = os.path.getsize(ckpt_path) / (1024 * 1024)
 
         # label = 'BEST checkpoint' if is_best else 'checkpoint'
-        print(f"[{step}] Saved {kind} checkpoint: {ckpt_path} ({size_mb:.1f}MB)")
+        print(f"[{step}] Saved {kind.upper()} checkpoint: {ckpt_path} ({size_mb:.1f}MB)")
         is_best = kind.lower().startswith('best')
         if is_best:
             self.best_ckpt_path = ckpt_path

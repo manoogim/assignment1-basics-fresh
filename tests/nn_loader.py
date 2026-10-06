@@ -37,12 +37,19 @@ def get_batch(x, batch_size, ctx_len, g: torch.Generator = None, device=None) ->
     result = torch.tensor(numpy.array(inputs), device=device, dtype=torch.int32), torch.tensor(numpy.array(outputs), device=device, dtype=torch.int32), load_time   
     return result
 
-def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteration:int, out_path: str, sched_info: dict = {} ):
+def save_checkpoint(model: nn.Module, 
+                    optimizer: torch.optim.Optimizer, 
+                    generator: torch.Generator,
+                    iteration:int, 
+                    out_path: str, 
+                    sched_info: dict = {} 
+                    ):
     obj = {}
     obj['iteration'] = iteration
     obj['sched_info'] = sched_info
     obj['model_state'] = model.state_dict()
     obj['adamw_state'] = optimizer.state_dict()
+    obj['training_generator'] = generator.get_state()
 
     # save to tmp and atomically rename 
     tmp_path = out_path + '.tmp'
@@ -53,12 +60,25 @@ def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteratio
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write(str(iteration))
 
-def load_checkpoint( src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes], model: nn.Module, optimizer: torch.optim.Optimizer | None,  device) -> tuple[int, dict]:
+def load_checkpoint( src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes], 
+                    model: nn.Module, 
+                    optimizer: torch.optim.Optimizer | None, 
+                    generator: torch.Generator | None, 
+                    device) -> tuple[int, dict]:
+    
     obj = torch.load(src, map_location=device)
+
     model.load_state_dict(obj['model_state'])
+
     if optimizer is not None:
         optimizer.load_state_dict(obj['adamw_state'])
-    
+
+    if generator is not None:
+        # rng state is always on cpu regardless of device
+        rng_state = obj['training_generator'].cpu()
+        generator.set_state(rng_state)
+
     sched_info = obj['sched_info']
     iteration = obj['iteration']
+
     return iteration, sched_info
