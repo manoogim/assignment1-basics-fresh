@@ -33,20 +33,21 @@ data:
 
 run:
   ckpt_best_below: 3.0
-  num_steps_dbg: null
-  device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
+  num_steps_dbg: 650
+  device: 'auto'        # will see what's available at run time, and store the name cpu/cuda under this key
   seed: 29
   out_prefix: runs/
+  save_last: True
   save_every_steps: 50  # how often to save checkpoints stats
   log_every_steps: 10   # how often to log stats
   keep_last_ckpts: 4   # will keep this many files on disk
-  resume_from: null    # name of ckpt resume from or null to start frpom 0
+  resume_from: null    # name of ckpt resume from or null if starting from 0
   avg_window: 100       # for computing running avg loss 
 
 eval:
   num_batches: 10      # how many batches to use for validation loss
   batch_size: 16       # batch size for validation
-  eval_every_steps: 10000  # how often to evaluate validation loss
+  eval_every_steps: 50  # how often to evaluate validation loss
   target_loss: null      # break training loop when validation loss reaches this target
   best_ckpt: null
   eval_seed: 54321
@@ -66,8 +67,8 @@ wandb:
   tags: null
   active: seeded
   name_templates:
-    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}_ga{config.train.grad_accum}'
+    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}_ga{config.train.grad_accum}_lr{config.scheduler.maxrate}'
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
     roped: '{config.wandb.proj_name}{config.run.seed}_rms_rope_lr{config.scheduler.maxrate}'
     plain: '{config.wandb.proj_name}'
-    systems: 's{config.model.seq_len}-eb{config.train.batch_size}-ga{config.train.grad_accum}-u{condig.run.num_steps_dbg}'
+    systems: 's{config.model.seq_len}-eb{config.train.batch_size}-ga{config.train.grad_accum}-u{config.run.num_steps_dbg}'

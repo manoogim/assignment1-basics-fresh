@@ -65,6 +65,7 @@ class RunConfig(NamedTuple):
     device: str                     # auto | cuda | cpu | mps
     seed: int
     out_prefix: str
+    save_last: bool
     save_every_steps: int
     log_every_steps: int
     keep_last_ckpts: int            # keep under 27.. suffix will be a letter a-z

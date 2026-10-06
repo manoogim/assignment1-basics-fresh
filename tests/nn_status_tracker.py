@@ -152,20 +152,14 @@ class StatusTracker:
         if self.wandb is not None:
             self.wandb.log({'stats': self.last_update.as_dict()}, step=step)
     
-    def update_checkpoint(self, step, ckpt_path, is_best=False):
+    def update_checkpoint(self, step, ckpt_path, kind):
         size_mb = os.path.getsize(ckpt_path) / (1024 * 1024)
 
-        label = 'BEST checkpoint' if is_best else 'checkpoint'
-        print(f"[{step}] Saved {label}: {ckpt_path} ({size_mb:.1f}MB)")
-
+        # label = 'BEST checkpoint' if is_best else 'checkpoint'
+        print(f"[{step}] Saved {kind} checkpoint: {ckpt_path} ({size_mb:.1f}MB)")
+        is_best = kind.lower().startswith('best')
         if is_best:
             self.best_ckpt_path = ckpt_path
-        if self.wandb is not None:
-
-            self.wandb.log({
-                "checkpoint": ckpt_path,
-                "checkpoint_size_mb": size_mb
-            }, step=step)
 
     def update_validation(self, step, val_result, tokens_processed_lifetime, duration):
         val_loss, val_ppl = val_result['val_loss'], val_result['val_ppl']
@@ -190,10 +184,18 @@ class StatusTracker:
 
         return new_best
 
-    def finalize(self):
+    def finalize(self, last_ckpt_path = None):
+        try:
+            self._finalize(last_ckpt_path)
+        except Exception as ex:
+            print(ex)
+        finally:
+            pass
+
+    def _finalize(self, last_ckpt_path = None):
         """
-        Report the best point, write it to the wandb summary as one dict, 
-        and upload the BEST checkpoint.
+        Report the best point, write it to the wandb summary as one dict, and upload the BEST checkpoint.
+        Optionally, upload the last chkpt
         """
         best_loss_msg = 'No validation was run - no best validation loss to report.' if self.best_val.step == -1 else f'FINAL BEST LOSS: {self.best_val.render()}'
         self.log(best_loss_msg)
@@ -217,6 +219,10 @@ class StatusTracker:
 
             else:                
                 self.upload_best_artifact(self.best_ckpt_path)
+            
+            if last_ckpt_path is not None:
+                self.log('Uploading last checkpoint')
+                self.upload_milestone_artifact(last_ckpt_path, self.last_update.step, 'last') # type: ignore
 
     def upload_best_artifact(self, ckpt_path):      
         if self.wandb is not None:
@@ -226,16 +232,16 @@ class StatusTracker:
             upload_artifact(self.wandb, 'best_ckpt', ckpt_path, metadata=metadata, artifact_type='model')
             self.log('Upload complete.')
 
-    def upload_milestone_artifact(self, ckpt_path, step):
+    def upload_milestone_artifact(self, ckpt_path, step, tag):
         if self.wandb is not None:
-            self.log(f'Start uploading milestone weights to wandb.')
+            self.log(f'Start uploading {tag} weights to wandb.')
             metadata = {
+                'kind': tag,
                 'step': step,
-                'last_val_loss': self.best_val.validation_loss
             }
-            artifact_name = f'milestone_{step}'
+            artifact_name = f'{tag}_{step}'
             upload_artifact(self.wandb, artifact_name, ckpt_path, metadata, 'model')
-            self.log(f'Uploaded milestone at step {step}')
+            self.log(f'Uploaded {tag} at step {step}')
 
     def _rss(self):
         return psutil.Process(os.getpid()).memory_info().rss / (1024**3)

@@ -269,6 +269,6 @@ def fmt_hms( seconds):
     return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
 
 def calc_eta( tokens_budget, tokens_processed, window_throughput):
-    remaining_tokens = tokens_budget - tokens_processed
+    remaining_tokens = max(0,tokens_budget - tokens_processed)
     eta_seconds = remaining_tokens / window_throughput if window_throughput > 0 else 0.0 
     return eta_seconds

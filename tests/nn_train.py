@@ -16,7 +16,9 @@ from tests.nn_utils import calc_validation_loss, clip_gradient, compute_loss, de
 from tests.nn_yaml import Config, load_yaml_config
 
 def calc_total_steps(batch_size: int, context_length: int, token_budget: int) -> int:
-    return token_budget // (batch_size * context_length)
+    tokens_per_update = batch_size * context_length
+    result =( token_budget + tokens_per_update -1) // tokens_per_update
+    return result
 
 def build_model(config):
     model = MyTransformer.from_config(config.model, config.run.device)
@@ -65,7 +67,7 @@ def maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker: 
     safe_to_save = new_best_val is not None and (threshold is None or new_best_val < threshold)
     if safe_to_save:
         path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, 'best_ckpt.pt')
-        tracker.update_checkpoint(step, path, True)
+        tracker.update_checkpoint(step, path, 'BEST')
     return new_best_val
 
 def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MyScheduler, iteration, tokens_processed: int, config: Config, ckpt_name: str ):
@@ -176,7 +178,7 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
         if is_cadence_hit(step, config.run.save_every_steps):
             ckpt_name = derive_ckpt_name(step, config.run.save_every_steps, config.run.keep_last_ckpts)
             ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, ckpt_name)
-            tracker.update_checkpoint(step, ckpt_path)
+            tracker.update_checkpoint(step, ckpt_path, 'milestone')
 
         # stop only on optimizer-step boundaries, so `step` is the last completed step at break
         if tokens_processed >= config.token_budget:
@@ -201,8 +203,14 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
     # save best  checkpoint and upload artifact
     # on the slim chance last step was the best this line would be repeating the same work: calc validation  loss, if best 
     maybe_save_best(llm, optim, sched, step, tokens_processed, config, tracker, validation_tokens)
-    tracker.finalize()
 
+    if config.run.save_last:
+        ckpt_path = save_checkpoint_file(llm, optim, sched, step, tokens_processed, config, 'last_ckpt.pt')
+        tracker.update_checkpoint(step, ckpt_path, 'last')
+    else:
+        ckpt_path = None
+
+    tracker.finalize(ckpt_path)
     tracker.log(f"Training completed: step={step} | tokens={tokens_processed:_}. ")
 
 
