@@ -160,10 +160,12 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
         grad_norm = clip_gradient(llm.parameters(), config.train.max_norm, config.train.grad_eps)
         lr = sched.calc_learning_rate(step + 1)
         optim.set_lr(lr)
-
+        optim.step()
+        optim.zero_grad()
+        mean_loss = loss_sum / accum
         # should we log_now = 
         if is_cadence_hit(step, config.run.log_every_steps):
-            tracker.update(step, loss_sum.item(), lr, grad_norm, tokens_processed, load_time)
+            tracker.update(step, mean_loss, lr, grad_norm, tokens_processed, load_time)
 
         # should we eval_now = 
         if is_cadence_hit( step, config.eval.eval_every_steps):
