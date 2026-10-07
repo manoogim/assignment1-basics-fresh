@@ -242,7 +242,7 @@ def resolve_device(requested: str):
 
 def resolve_runs_folder(config: Config) -> str:
     prefix = f'{config.run.out_prefix}{resolve_wandb_name(config)}'
-    folder = f'{prefix}_{config.token_budget//1_000_000}mm_b{config.train.batch_size}'
+    folder = f'a{prefix}_{config.token_budget//1_000_000}mm_b{config.train.batch_size}'
     print(f'*** Runs folder: {folder}')
     return folder
 
