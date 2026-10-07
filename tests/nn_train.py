@@ -88,6 +88,9 @@ def save_checkpoint_file(model: MyTransformer, optimizer: MyAdamW, sched: MySche
     return out_path
 
 def init_run_state(model, optimizer: MyAdamW, generator: torch.Generator, config: Config, total_steps) -> tuple[int,int,MyScheduler]:
+    """
+    This code constructs the learning schedule, potentially after restoring the state from a saved checkpoint.
+    """
     cpt_path = config.run.resume_from
     if cpt_path is not None:
         StatusTracker.log(f'Resuming from checkpoint {cpt_path}')
@@ -109,9 +112,8 @@ def init_run_state(model, optimizer: MyAdamW, generator: torch.Generator, config
         tokens_processed = 0
         sched = MyScheduler.from_config(config.scheduler, total_steps)
 
-    init_lr = sched.calc_learning_rate(next_step)
-    optimizer.set_lr(init_lr)
-    StatusTracker.log(f'Learning Schedule: {sched}, init_lr={init_lr:.8f}')
+    next_lr = sched.calc_learning_rate(next_step)
+    StatusTracker.log(f'Learning Schedule: {sched}, init_lr={next_lr:.8f}')
 
     return next_step, tokens_processed, sched # type: ignore
 
@@ -149,7 +151,9 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
     
     optim.zero_grad()
     keep_training = True
-
+    """
+    This training loop applies the LR and updates parameters
+    """
     for micro_step in itertools.count():                     # boundary test is relative, so no start offset
 
         input_tokens, output_tokens, load_time = get_batch(training_tokens, micro_batch, config.model.seq_len, training_generator, config.run.device)
@@ -164,7 +168,7 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
 
         # ---------- optimizer step: same body and order as the old loop ----------
         grad_norm = clip_gradient(llm.parameters(), config.train.max_norm, config.train.grad_eps)
-        lr = sched.calc_learning_rate(step + 1)
+        lr = sched.calc_learning_rate(step)
         optim.set_lr(lr)
         optim.step()
         optim.zero_grad()
