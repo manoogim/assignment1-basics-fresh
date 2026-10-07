@@ -234,6 +234,7 @@ if __name__ == '__main__':
     parser.add_argument('-ga', '--grad_accum', type=int, help="Number of gradient accumulation steps")
     parser.add_argument('-wd', '--weight_decay', type=float, help="Optimizers weight decay factor")
     parser.add_argument('-fm', '--forward_mode', type=str, help='Activation checkpointing: plain | checkpoint (case-insensitive)')
+    parser.add_argument('-rf', '--resume_from', type=str, help='Start training from a saved checkpoint.')
     args = parser.parse_args()
     
     main(args)

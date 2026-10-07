@@ -1,6 +1,9 @@
+from argparse import ArgumentParser
 import os
 
 import wandb
+
+from tests.nn_yaml import load_yaml_config, resolve_runs_folder, resolve_wandb_name
 
 def build_metadata(wand_run):
     summary = {key: value for key, value in wand_run.summary._as_dict().items() if key.startswith(('init','final','best')) }
@@ -22,6 +25,7 @@ def upload_artifact(wand_run,  wandb_artifact_name, local_artifact_path, metadat
     wand_run.log_artifact(artifact)
     try:
         artifact.wait() # wait without short timeout
+        print(f'Uploaded artifact: {wandb_artifact_name}')
     except Exception as ex:
         print(f'Error while waiting to upload weights to wandb. {ex}')
 
@@ -47,25 +51,46 @@ def upload_best_ckpt():
 
     with wandb.init(entity=entity, project=wandb_project) as wandb_run:
         upload_artifact(wandb_run, wandb_artifact_name,  metadata, local_artifact_path, artifact_type=artifact_type)
-    
+
+def upload_artifact_manually(wandb_project, wandb_artifact_name, local_artifact_path, metadata={}):
+    entity="manoogim-personal"
+    artifact_type = 'model'
+ 
+    with wandb.init(entity=entity, project=wandb_project) as wandb_run:
+        upload_artifact(wandb_run, wandb_artifact_name, local_artifact_path, metadata, artifact_type=artifact_type)
+
+# def upload_artifact_from_args(args, metadata = {}) :
+#     _, cfg = load_yaml_config(args.config)
+#     wandb_project = resolve_wandb_name(cfg)
+#     runs_folder = resolve_runs_folder(cfg, args.suffix)
+#     local_artifact_path = os.path.join(runs_folder, args.ckpt)
+#     wandb_artifact_name = args.ckpt
+#     upload_artifact_manually(wandb_project, wandb_artifact_name, local_artifact_path, metadata)
+
+
 def download_artifact():
     run = wandb.init(
     entity="manoogim-personal",
     project="sweep-lr-kaggle",
-    job_type="robust-evaluation",
-    # config={
-    #     "checkpoint_artifact": "best_ckpt:v29",
-    #     "source_run_id": "v1f3z7ne",
-    #     "evaluation_seed": 0,
-    #     "max_batches": None,
-    # },
-)
+    job_type="robust-evaluation")
 
     artifact = run.use_artifact( "manoogim-personal/sweep-lr-kaggle/best_ckpt:v30", type="model",)
     checkpoint_path = artifact.download() + "/best_ckpt.pt"
     return checkpoint_path
 
 if __name__ == '__main__':
-    cpp = download_artifact()
-    print(f'Downloaded artifact: {cpp}')
+    desc = 'Upload a ckpt which is located in the standard runs folder of wandb project.'
+    epilog = (
+        'Example:\n\n'
+        'python tests/upload_artifact.py -c tests/config/gpt2_tiny.yaml -cp saved_ckpt.pt -su327mm'
+    )
+    parser = ArgumentParser(description=desc, epilog = epilog)
+    parser.add_argument('-c', '--config', type=str, default='tests/config/gpt2_tiny.yaml', help='Path to the YAML configuration file which determines the relevant wandb project.')
+    parser.add_argument('-cp', '--ckpt', type = str, default='ckpt_a.pt', help='Name of the checkpoint to upload.')
+    parser.add_argument('-su', '--suffix', type=str, default='aruns/owt_learning29_128_ga32_lr0_0055_0mm_b128/last_ckpt.pt', help='Last segment of runs folder to correctly reconstruct path to runs folder, must be name of the token budget, ex: 40mm, 70mm, 327mm etc')
+    args = parser.parse_args()
+
+    upload_artifact_manually('owt_learning','last_ckpt.pt',args.suffix)
+    # cpp = download_artifact()
+    # print(f'Downloaded artifact: {cpp}')
 
