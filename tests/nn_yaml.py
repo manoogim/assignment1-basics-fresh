@@ -187,6 +187,11 @@ def load_yaml_config(cfg_path, args=None):
         raw['run']['resume_from'] = override_resume_from
         wandb_tags.append(f'resume_from{override_resume_from[-20:]}')
 
+    override_num_steps_dbg = overrides.get('num_steps_dbg', None)
+    if override_num_steps_dbg is not None:
+        raw['run']['num_steps_dbg'] = override_num_steps_dbg
+        wandb_tags.append(f'num_steps_dbg{override_num_steps_dbg}')
+        
     dd = {
         'wandb_name': '',
         'runs_folder': ''
@@ -208,8 +213,8 @@ def load_yaml_config(cfg_path, args=None):
         wandb = WandbConfig(**raw['wandb'])
     )
     dd['wandb_name'] = resolve_wandb_name(config)
-    # dd['runs_folder'] = resolve_runs_folder(config, f'{token_budget//1_000_000}mm')
-    dd['runs_folder'] = resolve_runs_folder(config)
+    dd['runs_folder'] = resolve_runs_folder(config, f'{token_budget//1_000_000}mm')
+    # dd['runs_folder'] = resolve_runs_folder(config)
     # validations
     accum = config.train.grad_accum
     assert config.train.batch_size % accum == 0, f'batch_size {config.train.batch_size} must be divisible by grad_accum {accum}'
@@ -230,9 +235,9 @@ def get_overrides(args):
         "eval_seed": getattr(args, "eval_seed", None),
         "grad_accum": getattr(args, "grad_accum", None),
         "forward_mode": getattr(args, "forward_mode" , None  ),
-        "resume_from": getattr(args,"resume_from", None)
+        "resume_from": getattr(args,"resume_from", None),
+        "num_steps_dbg": getattr(args, "num_steps_dbg", None)
     }
-
     print("Overrides:", overrides)
     return overrides
 
@@ -247,13 +252,13 @@ def resolve_device(requested: str):
         result = 'cpu'
     return result
 
-def resolve_runs_folder(config: Config) -> str:
+def _resolve_runs_folder(config: Config) -> str:
     prefix = f'{config.run.out_prefix}{resolve_wandb_name(config)}'
     folder = f'a{prefix}_{config.token_budget//1_000_000}mm_b{config.train.batch_size}'
     print(f'*** Runs folder: {folder}')
     return folder
 
-def _resolve_runs_folder(config: Config, suffix) -> str:
+def resolve_runs_folder(config: Config, suffix) -> str:
     prefix = f'{config.run.out_prefix}{resolve_wandb_name(config)}'
     folder = f'a{prefix}_{config.token_budget//1_000_000}mm_b{config.train.batch_size}'
  

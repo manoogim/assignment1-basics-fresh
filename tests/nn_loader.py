@@ -67,7 +67,8 @@ def load_checkpoint( src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes]
                     device) -> tuple[int, dict]:
     
     obj = torch.load(src, map_location=device)
-
+    log_ckpt_state(obj)
+    
     model.load_state_dict(obj['model_state'])
 
     if optimizer is not None:
@@ -82,3 +83,27 @@ def load_checkpoint( src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes]
     iteration = obj['iteration']
 
     return iteration, sched_info
+
+def log_ckpt_state(checkpoint):
+    print("Saved schedule:", checkpoint["sched_info"])
+
+    adam = checkpoint["adamw_state"]
+    print("Optimizer states:", len(adam["state"]))
+    print("Parameter groups:", len(adam["param_groups"]))
+
+    if adam["state"]:
+        first_state = next(iter(adam["state"].values()))
+        print("First parameter's optimizer fields:")
+        for key, value in first_state.items():
+            print(key, describe(value))
+
+def describe(value):
+    if isinstance(value, torch.Tensor):
+        return f"Tensor(shape={tuple(value.shape)}, dtype={value.dtype})"
+    if isinstance(value, dict):
+        return f"dict({len(value)} entries), keys={list(value)[:12]}"
+    if isinstance(value, (list, tuple)):
+        return f"{type(value).__name__}(length={len(value)})"
+    if isinstance(value, (str, int, float, bool, type(None))):
+        return repr(value)
+    return type(value).__name__

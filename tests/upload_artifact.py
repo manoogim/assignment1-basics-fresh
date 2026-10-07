@@ -68,14 +68,12 @@ def upload_artifact_manually(wandb_project, wandb_artifact_name, local_artifact_
 #     upload_artifact_manually(wandb_project, wandb_artifact_name, local_artifact_path, metadata)
 
 
-def download_artifact():
-    run = wandb.init(
-    entity="manoogim-personal",
-    project="sweep-lr-kaggle",
-    job_type="robust-evaluation")
+def download_artifact(wandb_project, artifact_name):
+    run = wandb.init( entity="manoogim-personal", job_type="manual download")
 
-    artifact = run.use_artifact( "manoogim-personal/sweep-lr-kaggle/best_ckpt:v30", type="model",)
-    checkpoint_path = artifact.download() + "/best_ckpt.pt"
+    artifact = run.use_artifact( f"manoogim-personal/{wandb_project}/{artifact_name}", type="model",)
+    checkpoint_path = artifact.download() 
+    print(f'Downloaded {checkpoint_path}')
     return checkpoint_path
 
 if __name__ == '__main__':
@@ -90,7 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('-su', '--suffix', type=str, default='aruns/owt_learning29_128_ga32_lr0_0055_0mm_b128/last_ckpt.pt', help='Last segment of runs folder to correctly reconstruct path to runs folder, must be name of the token budget, ex: 40mm, 70mm, 327mm etc')
     args = parser.parse_args()
 
-    upload_artifact_manually('owt_learning','last_ckpt.pt',args.suffix)
-    # cpp = download_artifact()
+    # upload_artifact_manually('owt_learning','last_ckpt.pt',args.suffix)
+    cpp = download_artifact('owt_learning', 'last_649:v0')
     # print(f'Downloaded artifact: {cpp}')
 

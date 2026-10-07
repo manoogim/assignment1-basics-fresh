@@ -33,7 +33,7 @@ data:
 
 run:
   ckpt_best_below: 3.0
-  num_steps_dbg: 650
+  num_steps_dbg: 350
   device: 'auto'        # will see what's available at run time, and store the name cpu/cuda under this key
   seed: 29
   out_prefix: runs/
@@ -41,7 +41,7 @@ run:
   save_every_steps: 50  # how often to save checkpoints stats
   log_every_steps: 10   # how often to log stats
   keep_last_ckpts: 4   # will keep this many files on disk
-  resume_from: null    # name of ckpt resume from or null if starting from 0
+  resume_from: /kaggle/input/notebooks/melissamanoog/cs336-a1-owt/assignment1-basics-fresh/aruns/owt_learning29_128_ga32_lr0.0055_327mm_b128/last_ckpt.pt
   avg_window: 100       # for computing running avg loss 
 
 eval:

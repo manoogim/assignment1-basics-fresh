@@ -99,7 +99,7 @@ def init_run_state(model, optimizer: MyAdamW, generator: torch.Generator, config
         sched = MyScheduler.from_state_dict(sched_info)
         StatusTracker.log(f'Resuming from step: {step}, tokens processed: {sched_info["tokens_processed"]:_} from file: {cpt_path}. Keeping original lr schedule: {sched}')
         # TODO - should we raise or soft warn if new config has different learning schedule
-        if sched_info['batch_size'] != config.train.batch_size:
+        if sched_info['batch_size'] != config.train.batch_size :
             StatusTracker.log(f"[INFO] Resuming with batch_size={config.train.batch_size}, "
             f"differs from checkpoint's original batch_size={sched_info['batch_size']}. "
             f"Keeping original schedule (warmup_end, cosine_end, minrate, and maxrate). "
@@ -133,9 +133,11 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
     start_step, tokens_processed, sched = init_run_state(llm, optim, training_generator, config, total_steps)
 
     tracker = StatusTracker(tokens_processed, total_steps, sched.as_dict(), raw_cfg, config, llm.num_params)
-    msg=f"Total steps: {total_steps:_}, Total tokens budget: {config.token_budget:_}, effective batch size: {config.train.batch_size}, grad_accum: {config.train.grad_accum}, runs folder: {config.dict['runs_folder']} "
-    tracker.log(msg)
 
+    if config.run.num_steps_dbg <= 0:
+        tracker.log('No training - exiting after init run state')
+        return
+    
     training_tokens, validation_tokens = load_tokens(config)
 
     accum = config.train.grad_accum
@@ -185,7 +187,7 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
             StatusTracker.log(f'Number of processed tokens: {tokens_processed:_} reached tokens budget: {config.token_budget:_}. Now training stops!')
             keep_training = False
 
-        if config.run.num_steps_dbg is not None and step + 1 == start_step + config.run.num_steps_dbg:
+        if config.run.num_steps_dbg is not None and step + 1 >= start_step + config.run.num_steps_dbg:
             StatusTracker.log( f"Completed {config.run.num_steps_dbg:_} debug updates. Now training stops!" )
             keep_training = False
 
@@ -235,6 +237,7 @@ if __name__ == '__main__':
     parser.add_argument('-wd', '--weight_decay', type=float, help="Optimizers weight decay factor")
     parser.add_argument('-fm', '--forward_mode', type=str, help='Activation checkpointing: plain | checkpoint (case-insensitive)')
     parser.add_argument('-rf', '--resume_from', type=str, help='Start training from a saved checkpoint.')
+    parser.add_argument('-dbg', '--num_steps_dbg', type=int, help='Number of steps to break earlier than tokens budget consumed')
     args = parser.parse_args()
     
     main(args)

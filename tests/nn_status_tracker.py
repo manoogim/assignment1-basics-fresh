@@ -65,10 +65,6 @@ class StatusTracker:
         self.total_token_budget = config.token_budget
         self.avg_window = config.run.avg_window
 
-        if config.run.num_steps_dbg is not None:
-            self.dbg_token_budget = config.token_budget * config.run.num_steps_dbg / total_steps
-        else:
-            self.dbg_token_budget = None
         self.loss_history = []
         self.start_time = time.time()
         self.min_loss = float('inf')
@@ -80,6 +76,15 @@ class StatusTracker:
  
         # last values seen by update(), for the final run summary
         self.last_update = None
+
+        msg=f"Total steps: {total_steps:_}, Total tokens budget: {config.token_budget:_}, effective batch size: {config.train.batch_size}, grad_accum: {config.train.grad_accum}, runs folder: {config.dict['runs_folder']} "
+        StatusTracker.log(msg)
+        if config.run.num_steps_dbg is not None:
+            self.dbg_token_budget = config.token_budget * config.run.num_steps_dbg // total_steps
+            msg = f'DBG total steps: {config.run.num_steps_dbg} | DBG tokens budget: {self.dbg_token_budget:_}'
+            StatusTracker.log(msg)
+        else:
+            self.dbg_token_budget = None
 
         if config.run.device == 'cuda':
             torch.cuda.reset_peak_memory_stats()
