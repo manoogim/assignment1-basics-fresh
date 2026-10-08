@@ -145,7 +145,8 @@ class StatusTracker:
             window_throughput = run_throughput
         # ETA
         eta_seconds = calc_eta(self.total_token_budget, tokens_processed_lifetime, window_throughput)
-        eta_seconds_dbg = calc_eta(self.dbg_token_budget, tokens_processed_lifetime, window_throughput) if self.dbg_token_budget is not None else None
+        tokens_processed_this_run = tokens_processed_lifetime - self.initial_tokens_processed
+        eta_seconds_dbg = calc_eta(self.dbg_token_budget, tokens_processed_this_run, window_throughput) if self.dbg_token_budget is not None else None
  
         # remember for the final run summary / metadata and print periodic status
         self.last_update = LastUpdate(step=step, time=now, loss=loss, min_window_loss=self.min_loss,
