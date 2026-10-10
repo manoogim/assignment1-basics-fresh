@@ -113,7 +113,7 @@ def init_run_state(model, optimizer: MyAdamW, generator: torch.Generator, config
         sched = MyScheduler.from_config(config.scheduler, total_steps)
 
     next_lr = sched.calc_learning_rate(next_step)
-    StatusTracker.log(f'Learning Schedule: {sched}, init_lr={next_lr:.8f}')
+    StatusTracker.log(f'Learning Schedule: {sched}, next_lr={next_lr:.8f}')
 
     return next_step, tokens_processed, sched # type: ignore
 
