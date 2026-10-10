@@ -117,11 +117,11 @@ def init_run_state(model, optimizer: MyAdamW, generator: torch.Generator, config
 
     return next_step, tokens_processed, sched # type: ignore
 
-def is_cadence_hit (step, interval):
+def is_cadence_hit (step, start, interval):
     """
     check if it is time to log, save checkpoint or calc validation loss
     """
-    result = (step > 0 )and( step % interval == 0)    
+    result = (step > start )and( step % interval == 0)    
     return result
 
 def train(raw_cfg, config: Config, training_generator: torch.Generator):
@@ -174,15 +174,15 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
         optim.zero_grad()
         mean_loss = loss_sum / accum
         # should we log_now = 
-        if is_cadence_hit(step, config.run.log_every_steps):
+        if is_cadence_hit(step, start_step, config.run.log_every_steps):
             tracker.update(step, mean_loss, lr, grad_norm, tokens_processed, load_time)
 
         # should we eval_now = 
-        if is_cadence_hit( step, config.eval.eval_every_steps):
+        if is_cadence_hit( step, start_step, config.eval.eval_every_steps):
             maybe_save_best(llm, optim, sched, training_generator, step, tokens_processed, config, tracker, validation_tokens)
 
         # should we save checkpoint now = 
-        if is_cadence_hit(step, config.run.save_every_steps):
+        if is_cadence_hit(step, start_step, config.run.save_every_steps):
             ckpt_name = derive_ckpt_name(step, config.run.save_every_steps, config.run.keep_last_ckpts)
             ckpt_path = save_checkpoint_file(llm, optim, sched, training_generator, step, tokens_processed, config, tracker, ckpt_name)
 
