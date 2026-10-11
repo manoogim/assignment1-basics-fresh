@@ -22,7 +22,7 @@ train:
 
 scheduler:
   type: "cosine"
-  warmup_frac: 0.12      # e.g. 12% of total steps spent warming up
+  warmup_frac: 0.6      # % of total steps spent warming up
   cosine_frac: 1.0       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
   minrate: 0.0005
   maxrate: 0.0055
@@ -32,8 +32,8 @@ data:
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
-  ckpt_best_below: 3.0
-  num_steps_dbg: 350
+  ckpt_best_below: 3.5
+  num_steps_dbg: 650
   device: 'auto'        # will see what's available at run time, and store the name cpu/cuda under this key
   seed: 29
   out_prefix: runs/
@@ -41,7 +41,7 @@ run:
   save_every_steps: 50  # how often to save checkpoints stats
   log_every_steps: 10   # how often to log stats
   keep_last_ckpts: 4   # will keep this many files on disk
-  resume_from: artifacts/last_1349:v0/last_ckpt.pt
+  resume_from: null
   avg_window: 100       # for computing running avg loss 
 
 eval:
