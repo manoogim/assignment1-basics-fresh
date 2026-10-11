@@ -22,7 +22,7 @@ train:
 
 scheduler:
   type: "cosine"
-  warmup_frac: 0.6      # % of total steps spent warming up
+  warmup_frac: 0.06      # % of total steps spent warming up
   cosine_frac: 1.0       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
   minrate: 0.0005
   maxrate: 0.0055
