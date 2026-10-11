@@ -67,7 +67,7 @@ wandb:
   tags: null
   active: seeded
   name_templates:
-    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}_ga{config.train.grad_accum}_lr{config.scheduler.maxrate}'
+    seeded: '{config.wandb.proj_name}{config.run.seed}_{config.train.batch_size}_wf{config.scheduler.warmup_frac}_ga{config.train.grad_accum}_lr{config.scheduler.maxrate}'
     normed: '{config.wandb.proj_name}{config.run.seed}_{config.model.norm[type]}_lr{config.scheduler.maxrate}'
     roped: '{config.wandb.proj_name}{config.run.seed}_rms_rope_lr{config.scheduler.maxrate}'
     plain: '{config.wandb.proj_name}'
