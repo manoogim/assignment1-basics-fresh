@@ -109,6 +109,7 @@ class Config(NamedTuple):
     gen: GenConfig
     wandb: WandbConfig
 
+# def ingest_override(args, attr, dict, keys, wandb_tags)
 def load_yaml_config(cfg_path, args=None):
     """
     This loads config objects from yaml, and combines with optional overrides.
@@ -191,7 +192,11 @@ def load_yaml_config(cfg_path, args=None):
     if override_num_steps_dbg is not None:
         raw['run']['num_steps_dbg'] = override_num_steps_dbg
         wandb_tags.append(f'num_steps_dbg{override_num_steps_dbg}')
-        
+
+    override_tokens_folder = overrides.get('tokens_folder', None)
+    if override_tokens_folder is not None:
+        raw['data']['tokens_folder'] = override_tokens_folder
+
     dd = {
         'wandb_name': '',
         'runs_folder': ''
@@ -236,7 +241,8 @@ def get_overrides(args):
         "grad_accum": getattr(args, "grad_accum", None),
         "forward_mode": getattr(args, "forward_mode" , None  ),
         "resume_from": getattr(args,"resume_from", None),
-        "num_steps_dbg": getattr(args, "num_steps_dbg", None)
+        "num_steps_dbg": getattr(args, "num_steps_dbg", None),
+        "tokens_folder": getattr(args, "tokens_folder", None)
     }
     print("Overrides:", overrides)
     return overrides

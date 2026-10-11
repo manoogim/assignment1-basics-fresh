@@ -17,8 +17,8 @@ class BpeTokenizer:
 
     @classmethod
     def from_files(cls, vocab_folder: str, special_tokens: list[str]=None):
-        vocab_path = f'{vocab_folder}\\vocab.pkl'
-        merges_path = f'{vocab_folder}\\merges.pkl'
+        vocab_path = f'{vocab_folder}/vocab.pkl'
+        merges_path = f'{vocab_folder}/merges.pkl'
         with open(vocab_path, 'rb') as ff:
             vocab = pickle.load(ff, encoding='utf-8', errors='strict')
         with open(merges_path, 'rb') as ff:
@@ -81,6 +81,10 @@ class BpeTokenizer:
             chunk_ids = self._encode_chunk(chunk_bytes)
             ids.extend(chunk_ids)
         return ids
+
+    def encode_special(self):
+        arr = [self.encode(x) for x in self.special_tokens]
+        return arr
     
 def merge_symbols(symbols: list[bytes], pair: tuple[bytes, bytes]) -> list[bytes]:
     new_symbols = []

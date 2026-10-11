@@ -53,13 +53,13 @@ eval:
   eval_seed: 54321
 
 gen:
-  temp: 0
-  top_k: 10
-  max_tokens: 1024
-  prompt_path: null
-  vocab_folder: null
+  temp: 0.6
+  top_k: 40
+  max_tokens: 64
+  prompt_path: prompts/owt_prompts.yaml
+  vocab_folder: out/owt
   special_tokens: [<|endoftext|>]
-  model_weights_path: artifacts/best_ckpt-v29/best_ckpt.pt
+  model_weights_path: artifacts/last_2499-v0/last_ckpt.pt
 
 wandb:
   enabled: True
