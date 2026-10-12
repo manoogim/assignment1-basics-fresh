@@ -41,7 +41,7 @@ run:
   save_every_steps: 50  # how often to save checkpoints stats
   log_every_steps: 10   # how often to log stats
   keep_last_ckpts: 4   # will keep this many files on disk
-  resume_from: null
+  resume_from: artifacts/last_649:v0/last_ckpt.pt
   avg_window: 100       # for computing running avg loss 
 
 eval:
