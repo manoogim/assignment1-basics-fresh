@@ -6,9 +6,8 @@ import torch
 import torch.nn.functional as F
 
 from tests.bpe_tokenizer import BpeTokenizer
-from tests.generate import build_model
 from tests.nn_loader import load_checkpoint
-from tests.nn_train import build_optimizer, calc_total_steps, init_run_state, load_tokens
+from tests.nn_train import build_model, load_tokens
 from tests.nn_yaml import load_yaml_config
 
 def reconstruct_offsets(
