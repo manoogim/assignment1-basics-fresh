@@ -36,12 +36,19 @@ def reconstruct_offsets(
 # offsets = reconstruct_offsets(len(x))
 # Columns: update, microbatch, sequence, start
 
-def show_windows_text(x, offsets, config, update_steps_arr= [110, 119, 120, 121, 130]):
+def show_offset_text(training_tokens, config, single_offset_arr):
+    tokenizer = BpeTokenizer.from_files(config.gen.vocab_folder, config.gen.special_tokens)
+    for start in single_offset_arr:
+        token_ids = training_tokens[start : start + config.model.seq_len + 1].tolist()
+        print(f"\n--- start={start} ---")
+        print(tokenizer.decode(token_ids))
+
+def show_windows_text(x, offsets, config, update_steps_arr= [94]):
     tokenizer = BpeTokenizer.from_files(config.gen.vocab_folder, config.gen.special_tokens)
     for update in update_steps_arr:
-        show_windows(x, offsets, tokenizer, update=update, microbatch=0)
+        show_windows(x, config, offsets, tokenizer, update=update, microbatch=0)
 
-def show_windows(x, offsets, tokenizer, update, microbatch=0):
+def show_windows(x, config,  offsets, tokenizer, update, microbatch=0):
     # Columns: update, microbatch, sequence, start
     selected = offsets[
         (offsets[:, 0] == update)
@@ -51,7 +58,7 @@ def show_windows(x, offsets, tokenizer, update, microbatch=0):
     for upd, mb, seq, start in selected:
         start = int(start)
         # 1024 input tokens + the extra token used for shifted targets
-        ids = x[start:start + 1025].tolist()
+        ids = x[start:start + config.model.seq_len + 1].tolist()
 
         text = tokenizer.decode(ids)  # adapt to your tokenizer's API
         print(
@@ -147,18 +154,17 @@ def display_updates(sequences, microbatches, updates, from_selected, to_selected
     sequences.to_csv(f"spike_sequence_losses_{from_selected}-{to_selected}.csv", index=False)
     updates.to_csv(f"spike_update_losses_{from_selected}-{to_selected}.csv")
 
-    updates[["mean_loss", "max_microbatch_loss"]].plot(
-        marker=".", xlabel="Update index",
-        ylabel="Frozen-checkpoint loss",
-        title=f"Difficulty of sampled training windows: updates {from_selected}-{to_selected}",
-    )
 
 def main(args):
     _, config = load_yaml_config(args.config, args)
-    llm = build_model(config)
-    load_checkpoint(config.run.resume_from, llm, None, None, config.run.device) # type: ignore
 
     training_tokens, _ = load_tokens(config)
+    show_offset_text(training_tokens, config, [1_022_856_199, 497_533_245])
+    return
+
+
+    llm = build_model(config)
+    load_checkpoint(config.run.resume_from, llm, None, None, config.run.device) # type: ignore
 
     offsets = reconstruct_offsets(
             len(training_tokens),
@@ -187,7 +193,9 @@ if __name__ == '__main__':
     parser.add_argument('-lu', '--last_update', type=int, default=140, help='Last update to recompute')
     parser.add_argument('-fs', '--from_selected', type=int, default=90, help='Start of focus range')
     parser.add_argument('-ts', '--to_selected', type=int, default=140, help='End of focus range')
-    parser.add_argument('-e', '--exit', type=str, help='y or n to exit right away', default='y')
+    parser.add_argument('-e', '--exit', type=str, help='y or n to exit right away', default='n')
+    parser.add_argument('-s', '--show', type=str, help='y or n to exit right away', default='y')
+   
     args = parser.parse_args()
 
     

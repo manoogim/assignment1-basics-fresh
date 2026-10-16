@@ -12,7 +12,7 @@ from torch import nn
 
 def get_batch(x, batch_size, ctx_len, g: torch.Generator = None, device=None) -> Tuple[Int[torch.Tensor, 'batch_size ctx_len'], Int[torch.Tensor, 'batch_size ctx_len'], float]:
     start_load = time.perf_counter()
-    max_start = len(x) - ctx_len - 1
+    max_start = len(x) - ctx_len
     if max_start < 0:
         raise ValueError(f'Not enough elements: {len(x)} cannot support matrix {batch_size} x {ctx_len}')
 

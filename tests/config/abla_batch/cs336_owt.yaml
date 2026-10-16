@@ -22,10 +22,10 @@ train:
 
 scheduler:
   type: "cosine"
-  warmup_frac: 0.06      # % of total steps spent warming up
+  warmup_frac: 0.12      # % of total steps spent warming up
   cosine_frac: 1.0       # cosine decay spans the (almost-)entire remaining run, the rest is constant at minrate
-  minrate: 0.0005
-  maxrate: 0.0055
+  minrate: 0.000275
+  maxrate: 0.002750
 
 data:
   tokens_folder: '/kaggle/input/datasets/melissamanoog/tokens-owt/owt'
@@ -41,7 +41,7 @@ run:
   save_every_steps: 50  # how often to save checkpoints stats
   log_every_steps: 10   # how often to log stats
   keep_last_ckpts: 4   # will keep this many files on disk
-  resume_from: artifacts/last_649:v0/last_ckpt.pt
+  resume_from: null
   avg_window: 100       # for computing running avg loss 
 
 eval:
