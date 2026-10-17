@@ -174,11 +174,11 @@ def train(raw_cfg, config: Config, training_generator: torch.Generator):
         optim.zero_grad()
         mean_loss = loss_sum / accum
         # should we log_now = 
-        if is_cadence_hit(step, start_step, config.run.log_every_steps):
+        if is_cadence_hit(step, 0, config.run.log_every_steps):
             tracker.update(step, mean_loss, lr, grad_norm, tokens_processed, load_time)
 
         # should we eval_now = 
-        if is_cadence_hit( step, start_step, config.eval.eval_every_steps):
+        if is_cadence_hit( step, 0, config.eval.eval_every_steps):
             maybe_save_best(llm, optim, sched, training_generator, step, tokens_processed, config, tracker, validation_tokens)
 
         # should we save checkpoint now = 
