@@ -193,10 +193,18 @@ class StatusTracker:
 
     def finalize(self, last_ckpt_path = None):
         try:
+            exit_code=0
             self._finalize(last_ckpt_path)
+            
         except Exception as ex:
+            exit_code=1
             print(ex)
+            
         finally:
+            if self.wandb is not None:
+                print("Starting W&B finish", flush=True)
+                self.wandb.finish(exit_code)  # type: ignore
+                print("Ending W&B finish", flush=True)
             pass
 
     def _finalize(self, last_ckpt_path = None):

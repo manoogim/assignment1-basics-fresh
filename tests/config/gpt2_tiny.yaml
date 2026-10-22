@@ -29,12 +29,12 @@ scheduler:
   maxrate: 0.0055
 
 data:
-  tokens_folder: 'out/tinystories_GPT4'
+  tokens_folder: '/kaggle/input/datasets/melissamanoog/out/tinystories_GPT4'
   dtype: 'uint16'       # the tokens are stored as uint16, but will be converted to int32 for training
 
 run:
   ckpt_best_below: 2.0
-  num_steps_dbg: 10
+  num_steps_dbg: 1
   device: 'auto'        # will see what's available at run time, and store the name cpu/gpu under this key
   seed: 29
   out_prefix: runs/
@@ -42,7 +42,7 @@ run:
   save_every_steps: 2     # how often to save checkpoints stats
   log_every_steps: 1   # how often to log stats
   keep_last_ckpts: 2   # will keep this many files on disk
-  resume_from: runs/zzyyxxcheckpoints-tinystoriess29_ga2_40mm/ckpt_b.pt    # name of ckpt resume from or null to start frpom 0
+  resume_from: null    # name of ckpt resume from or null to start frpom 0
   avg_window: 100       # for computing running avg loss 
 
 eval:
@@ -65,7 +65,7 @@ gen:
 wandb:
   enabled: True
   proj_name: zzyyxxcheckpoints-tinystories
-  tags: ['baseline', 'tinystories', 'checkpoints']
+  tags: ['baseline', 'tinystories', 'wandbexit']
   active: seeded
   name_templates:
     seeded: '{config.wandb.proj_name}s{config.run.seed}_ga{config.train.grad_accum}'
